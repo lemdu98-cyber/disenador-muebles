@@ -6,7 +6,7 @@ import Desk from "./components/Desk";
 import TvStand from "./components/TvStand";
 import Nightstand from "./components/Nightstand";
 import CutList from "./components/CutList";
-import MaterialCost from "./components/MaterialCost";
+import CutOptimizer from "./components/CutOptimizer";
 import "./App.css";
 
 const MODELS = { wardrobe: { label: "Ropero", dimensions: [180, 220, 60] }, desk: { label: "Escritorio", dimensions: [140, 75, 60] }, tvStand: { label: "Mueble TV", dimensions: [180, 55, 45] }, nightstand: { label: "Mesa de noche", dimensions: [50, 55, 40] } };
@@ -50,7 +50,7 @@ export default function App() {
         </>}
       </section>
       <CutList furnitureType={furnitureType} widthCm={widthCm} heightCm={heightCm} depthCm={depthCm} doors={doors} drawers={drawers} shelves={shelves} />
-      <MaterialCost furnitureType={furnitureType} widthCm={widthCm} heightCm={heightCm} depthCm={depthCm} doors={doors} drawers={drawers} shelves={shelves} />
+      <CutOptimizer furnitureType={furnitureType} widthCm={widthCm} heightCm={heightCm} depthCm={depthCm} doors={doors} drawers={drawers} shelves={shelves} />
     </aside>
     <section className="viewport"><Canvas camera={{ position: [3.8, 2.8, 4.2], fov: 45 }} shadows>
       <color attach="background" args={["#f5f1eb"]} /><ambientLight intensity={1.4} /><directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
