@@ -28,13 +28,25 @@ function placeInBoard(board, piece) {
   return true;
 }
 
-const newBoard = (number) => ({ number, pieces: [], freeRects: [{ x: 0, y: 0, width: MELAMINE_BOARD.lengthCm, height: MELAMINE_BOARD.widthCm }] });
+const newBoard = (number, source = "new", stock = null) => ({
+  number,
+  source,
+  stockId: stock?.id || null,
+  label: source === "scrap" ? `Retazo ${stock.code || stock.id}` : `Placa #${number}`,
+  pieces: [],
+  freeRects: [{ x: 0, y: 0, width: stock?.lengthCm || MELAMINE_BOARD.lengthCm, height: stock?.widthCm || MELAMINE_BOARD.widthCm }],
+  lengthCm: stock?.lengthCm || MELAMINE_BOARD.lengthCm,
+  widthCm: stock?.widthCm || MELAMINE_BOARD.widthCm,
+});
 
 /** Best-fit decreasing guillotine packing. Coordinates and dimensions are in cm. */
-export function optimizeCuts(pieces) {
+export function optimizeCuts(pieces, { scrapBank = [] } = {}) {
   const boards = [];
   const unplaced = [];
+  const scrapUsage = [];
   const sorted = [...pieces].sort((a, b) => b.areaCm2 - a.areaCm2 || Math.max(b.length, b.width) - Math.max(a.length, a.width));
+  const availableScraps = scrapBank.filter((scrap) => scrap.status === "Disponible");
+  availableScraps.forEach((scrap) => boards.push(newBoard(boards.length + 1, "scrap", scrap)));
   sorted.forEach((piece) => {
     if (piece.length > MELAMINE_BOARD.lengthCm && piece.length > MELAMINE_BOARD.widthCm || piece.width > MELAMINE_BOARD.lengthCm && piece.width > MELAMINE_BOARD.widthCm) {
       unplaced.push(piece);
@@ -47,5 +59,6 @@ export function optimizeCuts(pieces) {
       else unplaced.push(piece);
     }
   });
-  return { boards, unplaced };
+  boards.filter((board) => board.source === "scrap" && board.pieces.length).forEach((board) => scrapUsage.push(board.stockId));
+  return { boards, unplaced, scrapUsage };
 }
