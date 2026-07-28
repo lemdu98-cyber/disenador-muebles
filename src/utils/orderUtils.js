@@ -1,6 +1,6 @@
 import { getCutPieces, getFurnitureLabel } from "./cutPieces";
 
-export const FURNITURE_TYPES = ["wardrobe", "desk", "tvStand", "nightstand"];
+export const FURNITURE_TYPES = ["wardrobe", "desk", "tvStand", "nightstand", "catHouse"];
 
 export function createOrderItems(design) {
   return FURNITURE_TYPES.map((furnitureType) => ({

@@ -83,7 +83,17 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
     { location: backPanel.location, installation: backPanel.installation, mounting: backPanel.mounting },
   );
 
-  if (furnitureType === "desk") {
+  if (furnitureType === "catHouse") {
+    addPieces(pieces, "Lateral izquierdo", 1, heightCm - thicknessCm * 2, depthCm, melamine);
+    addPieces(pieces, "Lateral derecho", 1, heightCm - thicknessCm * 2, depthCm, melamine);
+    addPieces(pieces, "Base", 1, innerWidth, depthCm, melamine);
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
+    addPieces(pieces, "Fondo trasero", 1, widthCm, heightCm, hardboard, {
+      location: "Parte posterior exterior",
+      installation: "Clavado por la parte posterior",
+      mounting: "external",
+    });
+  } else if (furnitureType === "desk") {
     const drawerDepth = depthCm * 0.78;
     addPieces(pieces, "Tapa", 1, widthCm, depthCm, melamine);
     addPieces(pieces, "Patas laterales", 2, heightCm - thicknessCm, depthCm, melamine);
@@ -120,4 +130,4 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
   return pieces;
 }
 
-export const getFurnitureLabel = (type) => ({ wardrobe: "Ropero", desk: "Escritorio", tvStand: "Mueble TV", nightstand: "Mesa de noche" }[type] || "Mueble");
+export const getFurnitureLabel = (type) => ({ wardrobe: "Ropero", desk: "Escritorio", tvStand: "Mueble TV", nightstand: "Mesa de noche", catHouse: "Casa para Gatos" }[type] || "Mueble");

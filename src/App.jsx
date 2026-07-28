@@ -5,12 +5,14 @@ import Wardrobe from "./components/Wardrobe";
 import Desk from "./components/Desk";
 import TvStand from "./components/TvStand";
 import Nightstand from "./components/Nightstand";
+import CatHouse from "./components/CatHouse";
 import CutList from "./components/CutList";
 import CutOptimizer from "./components/CutOptimizer";
 import ProductionPanel from "./components/ProductionPanel";
 import MaterialSettings from "./components/MaterialSettings";
 import DrawerSlideSettings from "./components/DrawerSlideSettings";
 import DrawerFrontSettings from "./components/DrawerFrontSettings";
+import CatHouseSettings from "./components/CatHouseSettings";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -21,6 +23,7 @@ const MODELS = {
   desk: { label: "Escritorio", dimensions: [140, 75, 60] },
   tvStand: { label: "Mueble TV", dimensions: [180, 55, 45] },
   nightstand: { label: "Mesa de noche", dimensions: [50, 55, 40] },
+  catHouse: { label: "Casa para Gatos", dimensions: [40, 40, 40] },
 };
 
 export default function App() {
@@ -35,9 +38,11 @@ export default function App() {
   const [materialConfigs, setMaterialConfigs] = useState(createMaterialConfig);
   const [drawerSlideConfig, setDrawerSlideConfig] = useState(DEFAULT_DRAWER_SLIDE_CONFIG);
   const [drawerFrontConfig, setDrawerFrontConfig] = useState(DEFAULT_DRAWER_FRONT_CONFIG);
+  const [catHouseConfig, setCatHouseConfig] = useState({ entryType: "none", entryDiameterCm: 22, entryWidthCm: 22, entryHeightCm: 22, color: "#8b5a2b" });
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
+  const isCatHouse = furnitureType === "catHouse";
   const width = widthCm / 100;
   const height = heightCm / 100;
   const depth = depthCm / 100;
@@ -47,7 +52,7 @@ export default function App() {
     furnitureType, widthCm, depthCm, drawers, thicknessCm: melamineThickness * 100, drawerSlideConfig,
   }), [furnitureType, widthCm, depthCm, drawers, melamineThickness, drawerSlideConfig]);
   const drawerValidationError = drawerDimensions.hasEnoughDepth ? "" : "No existe profundidad suficiente para instalar una corredera de este tamaño.";
-  const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, drawerValidationError };
+  const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, drawerValidationError };
   const updateType = (type) => {
     const [newWidth, newHeight, newDepth] = MODELS[type].dimensions;
     setFurnitureType(type);
@@ -55,7 +60,7 @@ export default function App() {
     setHeightCm(newHeight);
     setDepthCm(newDepth);
     setDoors(2);
-    setDrawers(type === "desk" ? 3 : 2);
+    setDrawers(type === "desk" ? 3 : type === "catHouse" ? 0 : 2);
     setShelves(type === "tvStand" ? 0 : 3);
   };
   const updateDimension = (setter, minimum = 1) => (event) => setter(Math.max(minimum, Number(event.target.value) || minimum));
@@ -76,14 +81,16 @@ export default function App() {
       </div>
       <section className="configuration">
         <h2>Configuración</h2>
-        {isDesk || isNightstand ? <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label> : <>
+        {isCatHouse ? <p className="configuration-note">Estructura abierta sin puertas ni cajones.</p> : isDesk || isNightstand ? <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label> : <>
           <label>Puertas<input type="number" min="1" max={isTvStand ? "2" : "6"} value={doors} onChange={updateDimension(setDoors)} /></label>
           <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label>
           <label>{isTvStand ? "Repisas del nicho" : "Repisas"}<input type="number" min="0" max="10" value={shelves} onChange={updateDimension(setShelves, 0)} /></label>
         </>}
       </section>
-      <DrawerSlideSettings config={drawerSlideConfig} onChange={setDrawerSlideConfig} dimensions={drawerDimensions} disabled={!drawers} />
-      <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} />
+      {isCatHouse ? <CatHouseSettings config={catHouseConfig} onChange={setCatHouseConfig} thicknessMm={materialConfigs.melamine.thicknessMm} /> : <>
+        <DrawerSlideSettings config={drawerSlideConfig} onChange={setDrawerSlideConfig} dimensions={drawerDimensions} disabled={!drawers} />
+        <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} />
+      </>}
       {activeModule === "design" && <>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
         <CutList {...design} materialConfigs={materialConfigs} />
@@ -96,7 +103,7 @@ export default function App() {
         <ambientLight intensity={1.4} />
         <directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
         <Bounds fit clip observe margin={1.12}>
-          {isDesk ? <Desk width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : <Wardrobe width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} />}
+          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} color={catHouseConfig.color} entry={{ type: catHouseConfig.entryType, diameter: catHouseConfig.entryDiameterCm / 100, width: catHouseConfig.entryWidthCm / 100, height: catHouseConfig.entryHeightCm / 100 }} /> : isDesk ? <Desk width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : <Wardrobe width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} />}
         </Bounds>
         <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
         <OrbitControls makeDefault minDistance={2} maxDistance={10} />
