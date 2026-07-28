@@ -123,10 +123,10 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   });
 
   return <section className="production-page">
-    <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{design.drawerValidationError && <p className="validation-error">{design.drawerValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(design.drawerValidationError)}>Finalizar y guardar retazos</button></header>
+    <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{design.designValidationError && <p className="validation-error">{design.designValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(design.designValidationError)}>Finalizar y guardar retazos</button></header>
     <section className="production-lock-bar">
       <div className="production-lock-actions">
-        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(design.drawerValidationError)}>Fijar producción</button>
+        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(design.designValidationError)}>Fijar producción</button>
         <button type="button" className="primary-action" onClick={optimizeAdditions} disabled={!fixedProduction || !addedPieces.length}>Optimizar añadidos</button>
         <button type="button" onClick={unlockProduction} disabled={!fixedProduction || hasCutBoards}>Desbloquear producción</button>
         <button type="button" onClick={confirmBoards} disabled={!fixedProduction}>Confirmar placas</button>

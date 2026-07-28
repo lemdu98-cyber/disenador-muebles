@@ -3,6 +3,7 @@ import { calculateBackPanelDimensions } from "./backPanel";
 import { calculateDrawerBottomDimensions } from "./drawerBottom";
 import { calculateDrawerSlideDimensions } from "./drawerSlides";
 import { calculateDrawerFrontDimensions } from "./drawerFront";
+import { calculateNightstandStructure } from "./nightstandStructure";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
 const safe = (value) => Math.max(0, Number(value.toFixed(2)));
@@ -52,7 +53,7 @@ const addDrawerPieces = (pieces, quantity, boxWidth, boxFrontHeight, drawerDepth
 };
 
 /** Complete manufacturing list. Dimensions are centimetres and each piece owns its material. */
-export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandCrossbarHeightCm = 8 }) {
+export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig }) {
   const pieces = [];
   const melamine = materialConfigs?.melamine || MATERIALS.MELAMINE;
   const hardboard = materialConfigs?.hardboard || MATERIALS.HARDBOARD;
@@ -61,6 +62,10 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
   const innerHeight = heightCm - thicknessCm * 2;
   const drawerDimensions = calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers, thicknessCm, drawerSlideConfig });
   if (!drawerDimensions.hasEnoughDepth) return [];
+  const nightstandStructure = calculateNightstandStructure({
+    heightCm, depthCm, thicknessCm, drawers, drawerFrontConfig, structureConfig: nightstandStructureConfig,
+  });
+  if (furnitureType === "nightstand" && !nightstandStructure.valid) return [];
   const backPanel = calculateBackPanelDimensions({
     externalWidth: widthCm,
     externalHeight: heightCm,
@@ -116,9 +121,23 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
   } else if (furnitureType === "nightstand") {
     addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
     addPieces(pieces, "Laterales", 2, heightCm - thicknessCm, depthCm, melamine);
-    addPieces(pieces, "Travesaño inferior", 1, innerWidth, nightstandCrossbarHeightCm, melamine);
+    if (nightstandStructure.config.rearEnabled) addPieces(pieces, "Travesaño trasero inferior", 1, innerWidth, nightstandStructure.rearHeightCm, melamine);
+    if (nightstandStructure.config.frontEnabled) addPieces(
+      pieces,
+      "Travesaño frontal inferior",
+      1,
+      innerWidth,
+      nightstandStructure.frontDepthCm,
+      melamine,
+      {
+        mounting: "structural-front",
+        location: "Parte frontal inferior, entre laterales",
+        installation: `Altura estructural: ${nightstandStructure.frontHeightCm} cm · Separación mínima: ${nightstandStructure.safetyGapCm} cm`,
+        structuralHeightCm: nightstandStructure.frontHeightCm,
+      },
+    );
     addBackPanel();
-    if (drawers > 0) addDrawerPieces(pieces, drawers, drawerDimensions.externalWidthCm, (innerHeight - 4.5) / drawers, drawerDimensions.sideLengthCm, melamine, hardboard, thicknessCm, drawerFrontConfig);
+    if (drawers > 0) addDrawerPieces(pieces, drawers, drawerDimensions.externalWidthCm, nightstandStructure.drawerBoxHeightCm, drawerDimensions.sideLengthCm, melamine, hardboard, thicknessCm, drawerFrontConfig);
     else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine);
   } else {
     addPieces(pieces, "Laterales", 2, heightCm, depthCm, melamine);

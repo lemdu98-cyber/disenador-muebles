@@ -1,5 +1,6 @@
 import { calculateDrawerBottomDimensions } from "../utils/drawerBottom";
 import { calculateDrawerFrontDimensions } from "../utils/drawerFront";
+import { Edges } from "@react-three/drei";
 
 const MELAMINE = "#d8c3a5";
 const HARDBOARD = "#b98b5d";
@@ -13,6 +14,7 @@ export default function Drawer({
   thickness = .015,
   baseThickness = .003,
   drawerFrontConfig,
+  showEdges = false,
 }) {
   const sideHeight = Math.max(height * .72, .05);
   const bottom = calculateDrawerBottomDimensions({
@@ -31,10 +33,10 @@ export default function Drawer({
   });
 
   return <group position={position}>
-    <mesh position={[0, (front.topOverlayCm - front.bottomOverlayCm) / 200, depth / 2 + thickness / 2]}><boxGeometry args={[front.widthCm / 100, front.heightCm / 100, thickness]} /><meshStandardMaterial color={MELAMINE} /></mesh>
-    {[-1, 1].map((side) => <mesh key={side} position={[side * (width / 2 - thickness / 2), -height / 2 + sideHeight / 2, 0]}><boxGeometry args={[thickness, sideHeight, depth]} /><meshStandardMaterial color={MELAMINE} /></mesh>)}
-    <mesh position={[0, -height / 2 + sideHeight / 2, -depth / 2 + thickness / 2]}><boxGeometry args={[width - thickness * 2, sideHeight, thickness]} /><meshStandardMaterial color={MELAMINE} /></mesh>
-    <mesh position={[0, bottom.centerY, 0]}><boxGeometry args={[bottom.width, bottom.thickness, bottom.depth]} /><meshStandardMaterial color={HARDBOARD} /></mesh>
+    <mesh position={[0, (front.topOverlayCm - front.bottomOverlayCm) / 200, depth / 2 + thickness / 2]}><boxGeometry args={[front.widthCm / 100, front.heightCm / 100, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
+    {[-1, 1].map((side) => <mesh key={side} position={[side * (width / 2 - thickness / 2), -height / 2 + sideHeight / 2, 0]}><boxGeometry args={[thickness, sideHeight, depth]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>)}
+    <mesh position={[0, -height / 2 + sideHeight / 2, -depth / 2 + thickness / 2]}><boxGeometry args={[width - thickness * 2, sideHeight, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
+    <mesh position={[0, bottom.centerY, 0]}><boxGeometry args={[bottom.width, bottom.thickness, bottom.depth]} /><meshStandardMaterial color={HARDBOARD} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
     <mesh position={[0, 0, depth / 2 + thickness / 2]}><boxGeometry args={[Math.min(width * .32, .16), Math.max(.012, height * .07), .018]} /><meshStandardMaterial color="#3d3027" /></mesh>
   </group>;
 }
