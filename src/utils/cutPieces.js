@@ -16,6 +16,7 @@ const addPieces = (pieces, name, quantity, length, width, material, details = {}
       width: safeWidth,
       areaCm2: safeLength * safeWidth,
       material,
+      grainDirection: "free",
       ...details,
     });
   }

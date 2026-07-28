@@ -6,24 +6,27 @@ import MaterialCostSummary from "./MaterialCostSummary";
 import MelamineOptimizer from "./MelamineOptimizer";
 import PressedBoardOptimizer from "./PressedBoardOptimizer";
 import ScrapBank from "./ScrapBank";
+import OptimizerSettings from "./OptimizerSettings";
 import { createOrderItems, getOrderPieces } from "../utils/orderUtils";
 import { optimizeAllMaterials } from "../utils/materialOptimizer";
 import { DEFAULT_SCRAP_SETTINGS, classifyFreeRects, makeBankEntries } from "../utils/scrapManager";
 import { calculateMaterialCosts } from "../utils/materialCostCalculator";
 import { MATERIAL_IDS, MATERIAL_ORDER } from "../utils/materialConfig";
+import { DEFAULT_OPTIMIZER_SETTINGS } from "../utils/optimizer/optimizerConfig";
 
 const BANK_KEY = "mueblecad-scrap-bank";
 
 export default function ProductionPanel({ design, materialConfigs, setMaterialConfigs }) {
   const [orderItems, setOrderItems] = useState(() => createOrderItems(design));
   const [scrapSettings, setScrapSettings] = useState(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { ...DEFAULT_SCRAP_SETTINGS }])));
+  const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
   const [scrapBank, setScrapBank] = useState(() => { try { return JSON.parse(localStorage.getItem(BANK_KEY)) || []; } catch { return []; } });
   useEffect(() => { localStorage.setItem(BANK_KEY, JSON.stringify(scrapBank)); }, [scrapBank]);
 
   const setQuantity = (furnitureType, quantity) => setOrderItems((items) => items.map((item) => item.furnitureType === furnitureType ? { ...item, quantity: Math.max(0, Math.min(10, quantity)) } : item));
   const effectiveOrderItems = useMemo(() => orderItems.map((item) => item.furnitureType === design.furnitureType ? { ...item, params: { ...design } } : item), [orderItems, design]);
   const pieces = useMemo(() => getOrderPieces(effectiveOrderItems, materialConfigs), [effectiveOrderItems, materialConfigs]);
-  const optimized = useMemo(() => optimizeAllMaterials(pieces, materialConfigs, Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { scrapBank }]))), [pieces, materialConfigs, scrapBank]);
+  const optimized = useMemo(() => optimizeAllMaterials(pieces, materialConfigs, Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { scrapBank, optimizerSettings }]))), [pieces, materialConfigs, scrapBank, optimizerSettings]);
   const classifications = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
     classifyFreeRects(optimized[id].boards.filter((board) => board.pieces.length), scrapSettings[id], materialConfigs[id]),
@@ -43,7 +46,14 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
 
   const optimizerProps = (id) => ({
     config: materialConfigs[id],
-    result: optimized[id],
+    result: {
+      ...optimized[id],
+      boards: optimized[id].boards.map((board) => ({
+        ...board,
+        recoverableArea: classifications[id].recoverable.filter((item) => item.boardNumber === board.number && item.boardSource === board.source).reduce((sum, item) => sum + item.areaCm2, 0),
+        wasteArea: classifications[id].waste.filter((item) => item.boardNumber === board.number && item.boardSource === board.source).reduce((sum, item) => sum + item.areaCm2, 0),
+      })),
+    },
     classification: classifications[id],
     costs: costs[id],
     settings: scrapSettings[id],
@@ -56,6 +66,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
       <div className="production-selection">
         <section className="summary-card"><h2>Selección de muebles</h2>{effectiveOrderItems.map((item) => <ProductionCounter key={item.furnitureType} label={item.label} quantity={item.quantity} onChange={(quantity) => setQuantity(item.furnitureType, quantity)} />)}</section>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
+        <OptimizerSettings settings={optimizerSettings} onChange={setOptimizerSettings} />
         <section className="summary-card economic-summary"><h2>Resumen económico</h2>{MATERIAL_ORDER.map((id) => <MaterialCostSummary key={id} config={materialConfigs[id]} costs={costs[id]} />)}<div className="grand-total"><span>Costo total materiales</span><b>{totalCost.toFixed(2)} Bs</b></div></section>
       </div>
       <div>
