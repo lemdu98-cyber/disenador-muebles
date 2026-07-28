@@ -11,6 +11,7 @@ export default function Wardrobe({
   thickness = .015,
   backThickness = .003,
   drawerDimensions,
+  drawerFrontConfig,
 }) {
   const doorWidth = width / doors;
   const backPanel = calculateBackPanelDimensions({
@@ -126,6 +127,7 @@ export default function Wardrobe({
           depth={drawerDimensions.sideLengthCm / 100}
           thickness={thickness}
           baseThickness={backThickness}
+          drawerFrontConfig={drawerFrontConfig}
           position={[
             0,
             -height/2+0.25+(i*0.35),

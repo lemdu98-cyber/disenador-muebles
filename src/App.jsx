@@ -10,8 +10,10 @@ import CutOptimizer from "./components/CutOptimizer";
 import ProductionPanel from "./components/ProductionPanel";
 import MaterialSettings from "./components/MaterialSettings";
 import DrawerSlideSettings from "./components/DrawerSlideSettings";
+import DrawerFrontSettings from "./components/DrawerFrontSettings";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
+import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
 import "./App.css";
 
 const MODELS = {
@@ -32,6 +34,7 @@ export default function App() {
   const [activeModule, setActiveModule] = useState("design");
   const [materialConfigs, setMaterialConfigs] = useState(createMaterialConfig);
   const [drawerSlideConfig, setDrawerSlideConfig] = useState(DEFAULT_DRAWER_SLIDE_CONFIG);
+  const [drawerFrontConfig, setDrawerFrontConfig] = useState(DEFAULT_DRAWER_FRONT_CONFIG);
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
@@ -44,7 +47,7 @@ export default function App() {
     furnitureType, widthCm, depthCm, drawers, thicknessCm: melamineThickness * 100, drawerSlideConfig,
   }), [furnitureType, widthCm, depthCm, drawers, melamineThickness, drawerSlideConfig]);
   const drawerValidationError = drawerDimensions.hasEnoughDepth ? "" : "No existe profundidad suficiente para instalar una corredera de este tamaño.";
-  const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerValidationError };
+  const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, drawerValidationError };
   const updateType = (type) => {
     const [newWidth, newHeight, newDepth] = MODELS[type].dimensions;
     setFurnitureType(type);
@@ -80,6 +83,7 @@ export default function App() {
         </>}
       </section>
       <DrawerSlideSettings config={drawerSlideConfig} onChange={setDrawerSlideConfig} dimensions={drawerDimensions} disabled={!drawers} />
+      <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} />
       {activeModule === "design" && <>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
         <CutList {...design} materialConfigs={materialConfigs} />
@@ -92,7 +96,7 @@ export default function App() {
         <ambientLight intensity={1.4} />
         <directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
         <Bounds fit clip observe margin={1.12}>
-          {isDesk ? <Desk width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} /> : <Wardrobe width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} />}
+          {isDesk ? <Desk width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} /> : <Wardrobe width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} />}
         </Bounds>
         <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
         <OrbitControls makeDefault minDistance={2} maxDistance={10} />

@@ -1,4 +1,5 @@
 import { calculateDrawerBottomDimensions } from "../utils/drawerBottom";
+import { calculateDrawerFrontDimensions } from "../utils/drawerFront";
 
 const MELAMINE = "#d8c3a5";
 const HARDBOARD = "#b98b5d";
@@ -11,6 +12,7 @@ export default function Drawer({
   position = [0, 0, 0],
   thickness = .015,
   baseThickness = .003,
+  drawerFrontConfig,
 }) {
   const sideHeight = Math.max(height * .72, .05);
   const bottom = calculateDrawerBottomDimensions({
@@ -22,9 +24,14 @@ export default function Drawer({
     bottomThickness: baseThickness,
     drawerHeight: height,
   });
+  const front = calculateDrawerFrontDimensions({
+    boxWidthCm: width * 100,
+    boxFrontHeightCm: height * 100,
+    drawerFrontConfig,
+  });
 
   return <group position={position}>
-    <mesh position={[0, 0, depth / 2 - thickness / 2]}><boxGeometry args={[width, height, thickness]} /><meshStandardMaterial color={MELAMINE} /></mesh>
+    <mesh position={[0, (front.topOverlayCm - front.bottomOverlayCm) / 200, depth / 2 + thickness / 2]}><boxGeometry args={[front.widthCm / 100, front.heightCm / 100, thickness]} /><meshStandardMaterial color={MELAMINE} /></mesh>
     {[-1, 1].map((side) => <mesh key={side} position={[side * (width / 2 - thickness / 2), -height / 2 + sideHeight / 2, 0]}><boxGeometry args={[thickness, sideHeight, depth]} /><meshStandardMaterial color={MELAMINE} /></mesh>)}
     <mesh position={[0, -height / 2 + sideHeight / 2, -depth / 2 + thickness / 2]}><boxGeometry args={[width - thickness * 2, sideHeight, thickness]} /><meshStandardMaterial color={MELAMINE} /></mesh>
     <mesh position={[0, bottom.centerY, 0]}><boxGeometry args={[bottom.width, bottom.thickness, bottom.depth]} /><meshStandardMaterial color={HARDBOARD} /></mesh>
