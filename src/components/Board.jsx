@@ -1,6 +1,7 @@
 import Piece from "./Piece";
 import { MELAMINE_BOARD } from "../utils/cutPieces";
 import { downloadBoardImage } from "../utils/boardImageExporter";
+import { BOARD_STATE_ICONS, BOARD_STATE_LABELS, BOARD_STATES } from "../utils/production/BoardStateManager";
 
 export default function Board({ board }) {
   const usedArea = board.pieces.reduce((sum, piece) => sum + piece.areaCm2, 0);
@@ -8,8 +9,10 @@ export default function Board({ board }) {
   const boardWidth = board.widthCm || MELAMINE_BOARD.widthCm;
   const boardArea = board.usableArea || boardLength * boardWidth;
   const utilization = board.utilization ?? (usedArea / boardArea) * 100;
+  const status = board.status || BOARD_STATES.DRAFT;
   return <article className="board-card">
     <div className="board-heading"><b>{board.label || `Placa #${board.number}`}</b><span>{utilization.toFixed(2)}% aprovechado</span></div>
+    <div className={`board-status board-status-${status}`}>{BOARD_STATE_ICONS[status]} {BOARD_STATE_LABELS[status]}</div>
     <div className="board-algorithm">{board.algorithm || "Optimización guillotina"} · {board.pieces.length} piezas · {board.cutCount || 0} cortes</div>
     <div className="board-layout" aria-label={`Distribución de ${board.label || `placa ${board.number}`}`}><div className="board-inner" style={{ aspectRatio: `${boardLength} / ${boardWidth}` }}>{board.pieces.map((piece) => <Piece key={piece.id} piece={piece} boardNumber={board.number} boardLength={boardLength} boardWidth={boardWidth} />)}</div></div>
     <div className="board-metrics">

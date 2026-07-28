@@ -86,7 +86,7 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
   if (furnitureType === "catHouse") {
     addPieces(pieces, "Lateral izquierdo", 1, heightCm - thicknessCm * 2, depthCm, melamine);
     addPieces(pieces, "Lateral derecho", 1, heightCm - thicknessCm * 2, depthCm, melamine);
-    addPieces(pieces, "Base", 1, innerWidth, depthCm, melamine);
+    addPieces(pieces, "Base", 1, widthCm, depthCm, melamine);
     addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
     addPieces(pieces, "Fondo trasero", 1, widthCm, heightCm, hardboard, {
       location: "Parte posterior exterior",

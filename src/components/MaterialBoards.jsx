@@ -33,7 +33,7 @@ export default function MaterialBoards({
     <div className="section-title editor-section-title">
       <div><p className="eyebrow">PLACAS DE {config.label.toUpperCase()}</p><h2>Optimización independiente</h2></div>
       <div className="editor-actions">
-        {!editing && <button type="button" onClick={startEditing} disabled={!visibleBoards.length}>Editar distribución</button>}
+        {!editing && <button type="button" onClick={startEditing} disabled={!visibleBoards.length || visibleBoards.some((board) => board.status && board.status !== "draft")}>Editar distribución</button>}
         {editing && <button type="button" className="primary-action" onClick={save}>Guardar distribución</button>}
         {(editing || hasManualLayout) && <button type="button" onClick={reset}>Restablecer optimización</button>}
       </div>

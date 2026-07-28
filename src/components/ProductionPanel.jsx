@@ -13,6 +13,9 @@ import { DEFAULT_SCRAP_SETTINGS, classifyFreeRects, makeBankEntries } from "../u
 import { calculateMaterialCosts } from "../utils/materialCostCalculator";
 import { MATERIAL_IDS, MATERIAL_ORDER } from "../utils/materialConfig";
 import { DEFAULT_OPTIMIZER_SETTINGS } from "../utils/optimizer/optimizerConfig";
+import { createFixedProduction, getAddedPieces, optimizeProductionAdditions } from "../utils/production/ProductionManager";
+import { loadProduction, saveProduction } from "../utils/production/BoardSerializer";
+import { BOARD_STATES, setBoardsStatus } from "../utils/production/BoardStateManager";
 
 const BANK_KEY = "mueblecad-scrap-bank";
 
@@ -21,8 +24,10 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const [scrapSettings, setScrapSettings] = useState(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { ...DEFAULT_SCRAP_SETTINGS }])));
   const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
   const [manualLayouts, setManualLayouts] = useState({});
+  const [fixedProduction, setFixedProduction] = useState(loadProduction);
   const [scrapBank, setScrapBank] = useState(() => { try { return JSON.parse(localStorage.getItem(BANK_KEY)) || []; } catch { return []; } });
   useEffect(() => { localStorage.setItem(BANK_KEY, JSON.stringify(scrapBank)); }, [scrapBank]);
+  useEffect(() => { saveProduction(fixedProduction); }, [fixedProduction]);
 
   const setQuantity = (furnitureType, quantity) => setOrderItems((items) => items.map((item) => item.furnitureType === furnitureType ? { ...item, quantity: Math.max(0, Math.min(10, quantity)) } : item));
   const effectiveOrderItems = useMemo(() => orderItems.map((item) => item.furnitureType === design.furnitureType ? { ...item, params: { ...design } } : item), [orderItems, design]);
@@ -34,10 +39,23 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
     scrapBank: scrapBank.map(({ id, lengthCm, widthCm, status, materialId }) => ({ id, lengthCm, widthCm, status, materialId })),
   }), [pieces, materialConfigs, optimizerSettings, scrapBank]);
   const optimized = useMemo(() => optimizeAllMaterials(pieces, materialConfigs, Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { scrapBank, optimizerSettings }]))), [pieces, materialConfigs, scrapBank, optimizerSettings]);
-  const effectiveOptimized = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
+  const liveOptimized = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
     manualLayouts[id]?.optimizationKey === optimizationKey ? { ...optimized[id], boards: manualLayouts[id].boards } : optimized[id],
   ])), [optimized, manualLayouts, optimizationKey]);
+  const effectiveOptimized = fixedProduction?.results || liveOptimized;
+  const addedPieces = useMemo(() => getAddedPieces(pieces, fixedProduction), [pieces, fixedProduction]);
+  const incrementalSummary = MATERIAL_ORDER.reduce((summary, id) => {
+    const item = effectiveOptimized[id].incrementalSummary;
+    return item ? {
+      added: summary.added + item.added,
+      insertedExisting: summary.insertedExisting + item.insertedExisting,
+      sentToNewBoards: summary.sentToNewBoards + item.sentToNewBoards,
+    } : summary;
+  }, { added: 0, insertedExisting: 0, sentToNewBoards: 0 });
+  const hasCutBoards = fixedProduction
+    ? MATERIAL_ORDER.some((id) => fixedProduction.results[id].boards.some((board) => board.status === BOARD_STATES.CUT))
+    : false;
   const classifications = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
     classifyFreeRects(effectiveOptimized[id].boards.filter((board) => board.pieces.length), scrapSettings[id], materialConfigs[id]),
@@ -53,6 +71,32 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
     const usedIds = MATERIAL_ORDER.flatMap((id) => effectiveOptimized[id].scrapUsage);
     const known = new Set(scrapBank.map((scrap) => scrap.id));
     setScrapBank((bank) => [...bank.map((scrap) => usedIds.includes(scrap.id) ? { ...scrap, status: "Utilizado" } : scrap), ...entries.filter((entry) => !known.has(entry.id))]);
+  };
+
+  const fixProduction = () => setFixedProduction(createFixedProduction(effectiveOptimized, materialConfigs, optimizerSettings));
+  const optimizeAdditions = () => {
+    if (!fixedProduction || !addedPieces.length) return;
+    setFixedProduction(optimizeProductionAdditions({
+      production: fixedProduction, pieces, materialConfigs, optimizerSettings, scrapBank,
+    }));
+  };
+  const unlockProduction = () => {
+    setFixedProduction(null);
+    setManualLayouts({});
+  };
+  const confirmBoards = () => setFixedProduction((current) => current ? {
+    ...current, results: setBoardsStatus(current.results, BOARD_STATES.CONFIRMED),
+  } : current);
+  const markBoardsCut = () => {
+    if (!fixedProduction) return;
+    const entries = MATERIAL_ORDER.flatMap((id) => makeBankEntries(classifications[id].recoverable, materialConfigs[id]));
+    setScrapBank((bank) => {
+      const known = new Set(bank.map((scrap) => scrap.id));
+      return [...bank, ...entries.filter((entry) => !known.has(entry.id))];
+    });
+    setFixedProduction((current) => ({
+      ...current, results: setBoardsStatus(current.results, BOARD_STATES.CUT),
+    }));
   };
 
   const optimizerProps = (id) => ({
@@ -80,6 +124,22 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
 
   return <section className="production-page">
     <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{design.drawerValidationError && <p className="validation-error">{design.drawerValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(design.drawerValidationError)}>Finalizar y guardar retazos</button></header>
+    <section className="production-lock-bar">
+      <div className="production-lock-actions">
+        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(design.drawerValidationError)}>Fijar producción</button>
+        <button type="button" className="primary-action" onClick={optimizeAdditions} disabled={!fixedProduction || !addedPieces.length}>Optimizar añadidos</button>
+        <button type="button" onClick={unlockProduction} disabled={!fixedProduction || hasCutBoards}>Desbloquear producción</button>
+        <button type="button" onClick={confirmBoards} disabled={!fixedProduction}>Confirmar placas</button>
+        <button type="button" onClick={markBoardsCut} disabled={!fixedProduction}>Marcar como cortadas</button>
+        <button type="button" onClick={unlockProduction} disabled={!fixedProduction || hasCutBoards}>Restablecer optimización</button>
+      </div>
+      <div className="incremental-summary">
+        <span>Piezas pendientes: <b>{addedPieces.length}</b></span>
+        <span>Piezas nuevas añadidas: <b>{incrementalSummary.added}</b></span>
+        <span>Insertadas en placas existentes: <b>{incrementalSummary.insertedExisting}</b></span>
+        <span>Enviadas a placas nuevas: <b>{incrementalSummary.sentToNewBoards}</b></span>
+      </div>
+    </section>
     <div className="production-dashboard">
       <div className="production-selection">
         <section className="summary-card"><h2>Selección de muebles</h2>{effectiveOrderItems.map((item) => <ProductionCounter key={item.furnitureType} label={item.label} quantity={item.quantity} onChange={(quantity) => setQuantity(item.furnitureType, quantity)} />)}</section>
