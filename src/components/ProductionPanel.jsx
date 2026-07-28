@@ -20,26 +20,37 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const [orderItems, setOrderItems] = useState(() => createOrderItems(design));
   const [scrapSettings, setScrapSettings] = useState(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { ...DEFAULT_SCRAP_SETTINGS }])));
   const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
+  const [manualLayouts, setManualLayouts] = useState({});
   const [scrapBank, setScrapBank] = useState(() => { try { return JSON.parse(localStorage.getItem(BANK_KEY)) || []; } catch { return []; } });
   useEffect(() => { localStorage.setItem(BANK_KEY, JSON.stringify(scrapBank)); }, [scrapBank]);
 
   const setQuantity = (furnitureType, quantity) => setOrderItems((items) => items.map((item) => item.furnitureType === furnitureType ? { ...item, quantity: Math.max(0, Math.min(10, quantity)) } : item));
   const effectiveOrderItems = useMemo(() => orderItems.map((item) => item.furnitureType === design.furnitureType ? { ...item, params: { ...design } } : item), [orderItems, design]);
   const pieces = useMemo(() => getOrderPieces(effectiveOrderItems, materialConfigs), [effectiveOrderItems, materialConfigs]);
+  const optimizationKey = useMemo(() => JSON.stringify({
+    pieces: pieces.map(({ id, length, width, grainDirection, material }) => ({ id, length, width, grainDirection, materialId: material.id })),
+    materialConfigs,
+    optimizerSettings,
+    scrapBank: scrapBank.map(({ id, lengthCm, widthCm, status, materialId }) => ({ id, lengthCm, widthCm, status, materialId })),
+  }), [pieces, materialConfigs, optimizerSettings, scrapBank]);
   const optimized = useMemo(() => optimizeAllMaterials(pieces, materialConfigs, Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { scrapBank, optimizerSettings }]))), [pieces, materialConfigs, scrapBank, optimizerSettings]);
+  const effectiveOptimized = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
+    id,
+    manualLayouts[id]?.optimizationKey === optimizationKey ? { ...optimized[id], boards: manualLayouts[id].boards } : optimized[id],
+  ])), [optimized, manualLayouts, optimizationKey]);
   const classifications = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
-    classifyFreeRects(optimized[id].boards.filter((board) => board.pieces.length), scrapSettings[id], materialConfigs[id]),
-  ])), [optimized, scrapSettings, materialConfigs]);
+    classifyFreeRects(effectiveOptimized[id].boards.filter((board) => board.pieces.length), scrapSettings[id], materialConfigs[id]),
+  ])), [effectiveOptimized, scrapSettings, materialConfigs]);
   const costs = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
-    calculateMaterialCosts({ ...optimized[id], ...classifications[id], config: materialConfigs[id] }),
-  ])), [optimized, classifications, materialConfigs]);
+    calculateMaterialCosts({ ...effectiveOptimized[id], ...classifications[id], config: materialConfigs[id] }),
+  ])), [effectiveOptimized, classifications, materialConfigs]);
   const totalCost = MATERIAL_ORDER.reduce((sum, id) => sum + costs[id].cost, 0);
 
   const saveRecoveredScraps = () => {
     const entries = MATERIAL_ORDER.flatMap((id) => makeBankEntries(classifications[id].recoverable, materialConfigs[id]));
-    const usedIds = MATERIAL_ORDER.flatMap((id) => optimized[id].scrapUsage);
+    const usedIds = MATERIAL_ORDER.flatMap((id) => effectiveOptimized[id].scrapUsage);
     const known = new Set(scrapBank.map((scrap) => scrap.id));
     setScrapBank((bank) => [...bank.map((scrap) => usedIds.includes(scrap.id) ? { ...scrap, status: "Utilizado" } : scrap), ...entries.filter((entry) => !known.has(entry.id))]);
   };
@@ -47,8 +58,8 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const optimizerProps = (id) => ({
     config: materialConfigs[id],
     result: {
-      ...optimized[id],
-      boards: optimized[id].boards.map((board) => ({
+      ...effectiveOptimized[id],
+      boards: effectiveOptimized[id].boards.map((board) => ({
         ...board,
         recoverableArea: classifications[id].recoverable.filter((item) => item.boardNumber === board.number && item.boardSource === board.source).reduce((sum, item) => sum + item.areaCm2, 0),
         wasteArea: classifications[id].waste.filter((item) => item.boardNumber === board.number && item.boardSource === board.source).reduce((sum, item) => sum + item.areaCm2, 0),
@@ -58,6 +69,13 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
     costs: costs[id],
     settings: scrapSettings[id],
     onSettingsChange: (next) => setScrapSettings((current) => ({ ...current, [id]: next })),
+    hasManualLayout: manualLayouts[id]?.optimizationKey === optimizationKey,
+    onSaveManualLayout: (boards) => setManualLayouts((current) => ({ ...current, [id]: { boards, optimizationKey } })),
+    onResetManualLayout: () => setManualLayouts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    }),
   });
 
   return <section className="production-page">

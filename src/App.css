@@ -72,6 +72,21 @@ li + li { margin-top: 7px; }
 .cut-sequence { margin-top: 9px; color: #5e5147; font-size: 11px; }
 .cut-sequence summary { cursor: pointer; font-weight: 700; }
 .cut-sequence ol { margin: 7px 0 0; padding-left: 20px; }
+.editor-section-title { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.editor-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 6px; }
+.editor-actions button, .piece-manipulator button { padding: 7px 9px; border: 1px solid #cdb9a6; border-radius: 6px; color: #5c3820; background: #fff8ef; cursor: pointer; font-size: 11px; font-weight: 700; }
+.editor-actions button:disabled, .piece-manipulator button:disabled { cursor: not-allowed; opacity: .45; }
+.manual-layout-status { margin: 4px 0 10px; color: #17653a; font-size: 11px; font-weight: 700; }
+.piece-manipulator { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-height: 38px; margin-bottom: 8px; padding: 7px; border-radius: 6px; background: #f7efe6; font-size: 11px; }
+.piece-manipulator > span { margin-right: auto; font-weight: 700; }
+.piece-manipulator small { width: 100%; color: #7a695c; }
+.piece-manipulator .invalid-message { color: #a32d22; font-weight: 700; }
+.board-layout.editing { position: relative; }
+.editable-piece { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 2px; border: 2px solid rgb(255 255 255 / 80%); color: #fff; touch-action: none; cursor: grab; line-height: 1.1; font-size: clamp(7px, 1.3vw, 10px); }
+.editable-piece:active { cursor: grabbing; }
+.editable-piece.selected { z-index: 2; outline: 3px solid #ffdc5e; outline-offset: 1px; }
+.editable-piece.invalid { z-index: 3; background: #c62828 !important; outline: 3px solid #ff8a80; }
+.editable-piece span, .editable-piece small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
 @media (max-width: 900px) { .app-shell { display: block; } .viewport { height: 65vh; min-height: 400px; } }
 @media (max-width: 1050px) { .production-dashboard { grid-template-columns: 1fr; }.production-page { padding: 20px; } }
 @media (max-width: 620px) { .production-header, .board-total { display: grid; }.production-lists, .scrap-result { grid-template-columns: 1fr; }.production-page { padding: 14px; } }
