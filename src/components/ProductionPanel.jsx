@@ -79,7 +79,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   });
 
   return <section className="production-page">
-    <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p></div><button type="button" className="primary-action" onClick={saveRecoveredScraps}>Finalizar y guardar retazos</button></header>
+    <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{design.drawerValidationError && <p className="validation-error">{design.drawerValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(design.drawerValidationError)}>Finalizar y guardar retazos</button></header>
     <div className="production-dashboard">
       <div className="production-selection">
         <section className="summary-card"><h2>Selección de muebles</h2>{effectiveOrderItems.map((item) => <ProductionCounter key={item.furnitureType} label={item.label} quantity={item.quantity} onChange={(quantity) => setQuantity(item.furnitureType, quantity)} />)}</section>

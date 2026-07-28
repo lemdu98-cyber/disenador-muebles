@@ -64,6 +64,15 @@ li + li { margin-top: 7px; }
 .optimizer-margin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 9px; }
 .check-setting { display: flex; align-items: center; gap: 8px; margin: 9px 0; }
 .check-setting input { width: auto; margin: 0; }
+.slide-settings { padding-bottom: 4px; }
+.slide-summary { display: grid; margin: 14px 0; padding: 10px; border-radius: 7px; background: #f8f2ea; }
+.slide-summary div { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid #eadfd3; font-size: 11px; }
+.slide-summary div:last-child { border-bottom: 0; }
+.slide-summary span { color: #6c5a4c; }
+.slide-summary b { text-align: right; color: #3c2717; }
+.validation-error, .blocked-card { color: #a32d22 !important; }
+.validation-error { padding: 9px; border: 1px solid #e8b8b3; border-radius: 6px; background: #fff0ee; font-size: 12px; font-weight: 700; }
+.blocked-card { border-color: #e8b8b3; background: #fff8f7; }
 .optimization-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 12px 0; }
 .optimization-stats div { display: grid; gap: 2px; padding: 7px; border-radius: 6px; background: #f8f2ea; font-size: 10px; }
 .optimization-stats b { color: #4d321f; }

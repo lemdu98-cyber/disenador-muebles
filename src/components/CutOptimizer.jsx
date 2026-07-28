@@ -7,6 +7,7 @@ import { MATERIAL_ORDER } from "../utils/materialConfig";
 export default function CutOptimizer(props) {
   const pieces = useMemo(() => getCutPieces(props), [props]);
   const results = useMemo(() => optimizeAllMaterials(pieces, props.materialConfigs), [pieces, props.materialConfigs]);
+  if (props.drawerValidationError) return null;
 
   return <>{MATERIAL_ORDER.map((id) => {
     const config = props.materialConfigs[id];

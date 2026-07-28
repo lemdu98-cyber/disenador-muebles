@@ -10,6 +10,7 @@ export default function Wardrobe({
   shelves,
   thickness = .015,
   backThickness = .003,
+  drawerDimensions,
 }) {
   const doorWidth = width / doors;
   const backPanel = calculateBackPanelDimensions({
@@ -117,12 +118,12 @@ export default function Wardrobe({
 
 
       {/* Cajones */}
-      {Array.from({length:drawers}).map((_,i)=>(
+      {drawerDimensions.hasEnoughDepth && Array.from({length:drawers}).map((_,i)=>(
         <Drawer
           key={i}
-          width={width * 0.5}
+          width={drawerDimensions.externalWidthCm / 100}
           height={0.25}
-          depth={depth - thickness * 2}
+          depth={drawerDimensions.sideLengthCm / 100}
           thickness={thickness}
           baseThickness={backThickness}
           position={[

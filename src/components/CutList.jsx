@@ -4,6 +4,7 @@ import { MATERIAL_ORDER } from "../utils/materialConfig";
 
 export default function CutList(props) {
   const pieces = useMemo(() => getCutPieces(props), [props]);
+  if (props.drawerValidationError) return <section className="summary-card blocked-card"><h2>Lista de corte bloqueada</h2><p>{props.drawerValidationError}</p></section>;
   return <section className="summary-card">
     <h2>Listas de corte</h2>
     <p className="summary-title">{getFurnitureLabel(props.furnitureType)}: {props.widthCm} × {props.heightCm} × {props.depthCm} cm</p>
@@ -18,7 +19,7 @@ export default function CutList(props) {
       return <div className="cut-list-material" key={materialId}>
         <h3>Lista de Corte - {label}</h3>
         {grouped.map((group) => <div className="cut-piece-row" key={group[0].id}>
-          <div className="cut-row"><span>{group[0].name}</span><b>{group.length} · {group[0].length.toFixed(1)} × {group[0].width.toFixed(1)} cm</b></div>
+          <div className="cut-row"><span>{group[0].name}</span><b>{group.length} · {group[0].length.toFixed(2)} × {group[0].width.toFixed(2)} cm</b></div>
           {group[0].mounting && <div className="cut-piece-details">
             <span>Espesor: {group[0].material.thicknessMm} mm</span>
             <span>Material: {group[0].material.label}</span>
