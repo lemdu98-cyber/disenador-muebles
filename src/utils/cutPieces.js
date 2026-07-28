@@ -52,7 +52,7 @@ const addDrawerPieces = (pieces, quantity, boxWidth, boxFrontHeight, drawerDepth
 };
 
 /** Complete manufacturing list. Dimensions are centimetres and each piece owns its material. */
-export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig }) {
+export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandCrossbarHeightCm = 8 }) {
   const pieces = [];
   const melamine = materialConfigs?.melamine || MATERIALS.MELAMINE;
   const hardboard = materialConfigs?.hardboard || MATERIALS.HARDBOARD;
@@ -116,6 +116,7 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
   } else if (furnitureType === "nightstand") {
     addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
     addPieces(pieces, "Laterales", 2, heightCm - thicknessCm, depthCm, melamine);
+    addPieces(pieces, "Travesaño inferior", 1, innerWidth, nightstandCrossbarHeightCm, melamine);
     addBackPanel();
     if (drawers > 0) addDrawerPieces(pieces, drawers, drawerDimensions.externalWidthCm, (innerHeight - 4.5) / drawers, drawerDimensions.sideLengthCm, melamine, hardboard, thicknessCm, drawerFrontConfig);
     else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine);

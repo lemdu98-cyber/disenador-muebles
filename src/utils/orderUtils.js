@@ -15,9 +15,9 @@ export function createOrderItems(design) {
 export function getOrderPieces(orderItems, materialConfigs) {
   return orderItems.flatMap((item) => {
     if (!item.quantity) return [];
-    return Array.from({ length: item.quantity }, (_, unit) => getCutPieces({ ...item.params, materialConfigs }).map((piece, index) => ({
+    return Array.from({ length: item.quantity }, (_, unit) => getCutPieces({ ...item.params, materialConfigs }).map((piece) => ({
       ...piece,
-      id: `${item.furnitureType}-${unit + 1}-${index + 1}`,
+      id: `${item.furnitureType}-${unit + 1}-${piece.id}`,
       furnitureType: item.furnitureType,
       furnitureLabel: item.label,
       unit: unit + 1,
