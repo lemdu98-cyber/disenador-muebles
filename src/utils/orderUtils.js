@@ -12,10 +12,10 @@ export function createOrderItems(design) {
   }));
 }
 
-export function getOrderPieces(orderItems) {
+export function getOrderPieces(orderItems, materialConfigs) {
   return orderItems.flatMap((item) => {
     if (!item.quantity) return [];
-    return Array.from({ length: item.quantity }, (_, unit) => getCutPieces(item.params).map((piece, index) => ({
+    return Array.from({ length: item.quantity }, (_, unit) => getCutPieces({ ...item.params, materialConfigs }).map((piece, index) => ({
       ...piece,
       id: `${item.furnitureType}-${unit + 1}-${index + 1}`,
       furnitureType: item.furnitureType,
@@ -25,9 +25,9 @@ export function getOrderPieces(orderItems) {
   });
 }
 
-export function groupPiecesByFurniture(orderItems) {
+export function groupPiecesByFurniture(orderItems, materialConfigs) {
   return orderItems.filter((item) => item.quantity).map((item) => {
-    const pieces = getCutPieces(item.params);
+    const pieces = getCutPieces({ ...item.params, materialConfigs });
     const groups = Object.values(pieces.reduce((result, piece) => {
       const key = `${piece.name}|${piece.length}|${piece.width}`;
       (result[key] ||= []).push(piece);
@@ -41,8 +41,8 @@ export function consolidatePieces(pieces) {
   return Object.values(pieces.reduce((result, piece) => {
     const length = Number(piece.length.toFixed(1));
     const width = Number(piece.width.toFixed(1));
-    const key = `${length}|${width}`;
-    (result[key] ||= { length, width, quantity: 0, areaCm2: length * width, names: new Set() });
+    const key = `${piece.material.id}|${length}|${width}`;
+    (result[key] ||= { length, width, quantity: 0, areaCm2: length * width, names: new Set(), material: piece.material });
     result[key].quantity += 1;
     result[key].names.add(piece.name);
     return result;

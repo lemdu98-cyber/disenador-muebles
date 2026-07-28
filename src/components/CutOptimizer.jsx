@@ -1,11 +1,22 @@
 import { useMemo } from "react";
 import { getCutPieces } from "../utils/cutPieces";
-import { optimizeCuts } from "../utils/cuttingOptimizer";
-import MaterialCalculator from "./MaterialCalculator";
+import { optimizeAllMaterials } from "../utils/materialOptimizer";
 import BoardLayout from "./BoardLayout";
+import { MATERIAL_ORDER } from "../utils/materialConfig";
 
 export default function CutOptimizer(props) {
   const pieces = useMemo(() => getCutPieces(props), [props]);
-  const { boards, unplaced } = useMemo(() => optimizeCuts(pieces), [pieces]);
-  return <><MaterialCalculator pieces={pieces} boards={boards} unplaced={unplaced} /><section className="summary-card optimizer-card"><h2>Optimización de corte</h2><p className="summary-title">Acomodado guillotine con giro de 90° cuando mejora el aprovechamiento.</p><BoardLayout boards={boards} /></section></>;
+  const results = useMemo(() => optimizeAllMaterials(pieces, props.materialConfigs), [pieces, props.materialConfigs]);
+
+  return <>{MATERIAL_ORDER.map((id) => {
+    const config = props.materialConfigs[id];
+    const result = results[id];
+    return <section className="summary-card optimizer-card" key={id}>
+      <p className="eyebrow">PLACAS DE {config.label.toUpperCase()}</p>
+      <h2>Optimización de {config.label}</h2>
+      <div className="board-total"><span>{config.lengthCm} × {config.widthCm} cm · {config.thicknessMm} mm</span><b>{result.boards.length} placas · {(result.boards.length * config.price).toFixed(2)} Bs</b></div>
+      {result.boards.length ? <BoardLayout boards={result.boards} /> : <p className="empty-state">Sin piezas para optimizar.</p>}
+      {result.unplaced.length > 0 && <p className="optimizer-warning">{result.unplaced.length} pieza(s) no caben.</p>}
+    </section>;
+  })}</>;
 }

@@ -28,33 +28,34 @@ function placeInBoard(board, piece) {
   return true;
 }
 
-const newBoard = (number, source = "new", stock = null) => ({
+const newBoard = (number, boardConfig, source = "new", stock = null) => ({
   number,
   source,
   stockId: stock?.id || null,
-  label: source === "scrap" ? `Retazo ${stock.code || stock.id}` : `Placa #${number}`,
+  label: source === "scrap" ? `Retazo ${stock.code || stock.id}` : `${boardConfig.boardLabel || "Placa"} #${number}`,
   pieces: [],
-  freeRects: [{ x: 0, y: 0, width: stock?.lengthCm || MELAMINE_BOARD.lengthCm, height: stock?.widthCm || MELAMINE_BOARD.widthCm }],
-  lengthCm: stock?.lengthCm || MELAMINE_BOARD.lengthCm,
-  widthCm: stock?.widthCm || MELAMINE_BOARD.widthCm,
+  freeRects: [{ x: 0, y: 0, width: stock?.lengthCm || boardConfig.lengthCm, height: stock?.widthCm || boardConfig.widthCm }],
+  lengthCm: stock?.lengthCm || boardConfig.lengthCm,
+  widthCm: stock?.widthCm || boardConfig.widthCm,
+  materialId: boardConfig.id,
 });
 
 /** Best-fit decreasing guillotine packing. Coordinates and dimensions are in cm. */
-export function optimizeCuts(pieces, { scrapBank = [] } = {}) {
+export function optimizeCuts(pieces, { scrapBank = [], boardConfig = MELAMINE_BOARD } = {}) {
   const boards = [];
   const unplaced = [];
   const scrapUsage = [];
   const sorted = [...pieces].sort((a, b) => b.areaCm2 - a.areaCm2 || Math.max(b.length, b.width) - Math.max(a.length, a.width));
   const availableScraps = scrapBank.filter((scrap) => scrap.status === "Disponible");
-  availableScraps.forEach((scrap) => boards.push(newBoard(boards.length + 1, "scrap", scrap)));
+  availableScraps.filter((scrap) => !scrap.materialId || scrap.materialId === boardConfig.id).forEach((scrap) => boards.push(newBoard(boards.length + 1, boardConfig, "scrap", scrap)));
   sorted.forEach((piece) => {
-    if (piece.length > MELAMINE_BOARD.lengthCm && piece.length > MELAMINE_BOARD.widthCm || piece.width > MELAMINE_BOARD.lengthCm && piece.width > MELAMINE_BOARD.widthCm) {
+    if (piece.length > boardConfig.lengthCm && piece.length > boardConfig.widthCm || piece.width > boardConfig.lengthCm && piece.width > boardConfig.widthCm) {
       unplaced.push(piece);
       return;
     }
     const existing = boards.find((board) => placeInBoard(board, piece));
     if (!existing) {
-      const board = newBoard(boards.length + 1);
+      const board = newBoard(boards.length + 1, boardConfig);
       if (placeInBoard(board, piece)) boards.push(board);
       else unplaced.push(piece);
     }

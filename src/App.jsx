@@ -8,9 +8,16 @@ import Nightstand from "./components/Nightstand";
 import CutList from "./components/CutList";
 import CutOptimizer from "./components/CutOptimizer";
 import ProductionPanel from "./components/ProductionPanel";
+import MaterialSettings from "./components/MaterialSettings";
+import { createMaterialConfig } from "./utils/materialConfig";
 import "./App.css";
 
-const MODELS = { wardrobe: { label: "Ropero", dimensions: [180, 220, 60] }, desk: { label: "Escritorio", dimensions: [140, 75, 60] }, tvStand: { label: "Mueble TV", dimensions: [180, 55, 45] }, nightstand: { label: "Mesa de noche", dimensions: [50, 55, 40] } };
+const MODELS = {
+  wardrobe: { label: "Ropero", dimensions: [180, 220, 60] },
+  desk: { label: "Escritorio", dimensions: [140, 75, 60] },
+  tvStand: { label: "Mueble TV", dimensions: [180, 55, 45] },
+  nightstand: { label: "Mesa de noche", dimensions: [50, 55, 40] },
+};
 
 export default function App() {
   const [furnitureType, setFurnitureType] = useState("wardrobe");
@@ -21,12 +28,67 @@ export default function App() {
   const [drawers, setDrawers] = useState(2);
   const [shelves, setShelves] = useState(3);
   const [activeModule, setActiveModule] = useState("design");
+  const [materialConfigs, setMaterialConfigs] = useState(createMaterialConfig);
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
-  const width = widthCm / 100; const height = heightCm / 100; const depth = depthCm / 100;
+  const width = widthCm / 100;
+  const height = heightCm / 100;
+  const depth = depthCm / 100;
+  const melamineThickness = materialConfigs.melamine.thicknessMm / 1000;
+  const hardboardThickness = materialConfigs.hardboard.thicknessMm / 1000;
   const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves };
-  const updateType = (type) => { const [newWidth, newHeight, newDepth] = MODELS[type].dimensions; setFurnitureType(type); setWidthCm(newWidth); setHeightCm(newHeight); setDepthCm(newDepth); setDoors(2); setDrawers(type === "desk" ? 3 : type === "nightstand" ? 2 : 2); setShelves(type === "tvStand" ? 0 : 3); };
+  const updateType = (type) => {
+    const [newWidth, newHeight, newDepth] = MODELS[type].dimensions;
+    setFurnitureType(type);
+    setWidthCm(newWidth);
+    setHeightCm(newHeight);
+    setDepthCm(newDepth);
+    setDoors(2);
+    setDrawers(type === "desk" ? 3 : 2);
+    setShelves(type === "tvStand" ? 0 : 3);
+  };
   const updateDimension = (setter, minimum = 1) => (event) => setter(Math.max(minimum, Number(event.target.value) || minimum));
-  return <main className="app-shell"><aside className="control-panel"><h1>MuebleCAD</h1><p className="subtitle">Diseño y presupuesto para carpintería</p><div className="module-tabs"><button type="button" className={activeModule === "design" ? "active" : ""} onClick={() => setActiveModule("design")}>Diseño</button><button type="button" className={activeModule === "production" ? "active" : ""} onClick={() => setActiveModule("production")}>Producción</button></div><label>Tipo de mueble<select value={furnitureType} onChange={(event) => updateType(event.target.value)}>{Object.entries(MODELS).map(([value, model]) => <option key={value} value={value}>{model.label}</option>)}</select></label><div className="field-grid"><label>Ancho (cm)<input type="number" min="1" value={widthCm} onChange={updateDimension(setWidthCm)} /></label><label>Alto (cm)<input type="number" min="1" value={heightCm} onChange={updateDimension(setHeightCm)} /></label><label>Fondo (cm)<input type="number" min="1" value={depthCm} onChange={updateDimension(setDepthCm)} /></label></div><section className="configuration"><h2>Configuración</h2>{isDesk || isNightstand ? <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label> : <><label>Puertas<input type="number" min="1" max={isTvStand ? "2" : "6"} value={doors} onChange={updateDimension(setDoors)} /></label><label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label><label>{isTvStand ? "Repisas del nicho" : "Repisas"}<input type="number" min="0" max="10" value={shelves} onChange={updateDimension(setShelves, 0)} /></label></>}</section>{activeModule === "design" && <><CutList {...design} /><CutOptimizer {...design} /></>}</aside>{activeModule === "production" ? <ProductionPanel design={design} /> : <section className="viewport"><Canvas camera={{ position: [3.8, 2.8, 4.2], fov: 45 }} shadows><color attach="background" args={["#f5f1eb"]} /><ambientLight intensity={1.4} /><directionalLight position={[4, 6, 4]} intensity={2.2} castShadow /><Bounds fit clip observe margin={1.12}>{isDesk ? <Desk width={width} height={height} depth={depth} drawers={drawers} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} /> : <Wardrobe width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} />}</Bounds><Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} /><OrbitControls makeDefault minDistance={2} maxDistance={10} /></Canvas></section>}</main>;
+
+  return <main className="app-shell">
+    <aside className="control-panel">
+      <h1>MuebleCAD</h1>
+      <p className="subtitle">Diseño y presupuesto para carpintería</p>
+      <div className="module-tabs">
+        <button type="button" className={activeModule === "design" ? "active" : ""} onClick={() => setActiveModule("design")}>Diseño</button>
+        <button type="button" className={activeModule === "production" ? "active" : ""} onClick={() => setActiveModule("production")}>Producción</button>
+      </div>
+      <label>Tipo de mueble<select value={furnitureType} onChange={(event) => updateType(event.target.value)}>{Object.entries(MODELS).map(([value, model]) => <option key={value} value={value}>{model.label}</option>)}</select></label>
+      <div className="field-grid">
+        <label>Ancho (cm)<input type="number" min="1" value={widthCm} onChange={updateDimension(setWidthCm)} /></label>
+        <label>Alto (cm)<input type="number" min="1" value={heightCm} onChange={updateDimension(setHeightCm)} /></label>
+        <label>Fondo (cm)<input type="number" min="1" value={depthCm} onChange={updateDimension(setDepthCm)} /></label>
+      </div>
+      <section className="configuration">
+        <h2>Configuración</h2>
+        {isDesk || isNightstand ? <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label> : <>
+          <label>Puertas<input type="number" min="1" max={isTvStand ? "2" : "6"} value={doors} onChange={updateDimension(setDoors)} /></label>
+          <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label>
+          <label>{isTvStand ? "Repisas del nicho" : "Repisas"}<input type="number" min="0" max="10" value={shelves} onChange={updateDimension(setShelves, 0)} /></label>
+        </>}
+      </section>
+      {activeModule === "design" && <>
+        <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
+        <CutList {...design} materialConfigs={materialConfigs} />
+        <CutOptimizer {...design} materialConfigs={materialConfigs} />
+      </>}
+    </aside>
+    {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} /> : <section className="viewport">
+      <Canvas camera={{ position: [3.8, 2.8, 4.2], fov: 45 }} shadows>
+        <color attach="background" args={["#f5f1eb"]} />
+        <ambientLight intensity={1.4} />
+        <directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
+        <Bounds fit clip observe margin={1.12}>
+          {isDesk ? <Desk width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} /> : <Wardrobe width={width} height={height} depth={depth} doors={doors} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} />}
+        </Bounds>
+        <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
+        <OrbitControls makeDefault minDistance={2} maxDistance={10} />
+      </Canvas>
+    </section>}
+  </main>;
 }

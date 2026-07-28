@@ -47,6 +47,20 @@ li + li { margin-top: 7px; }
 .production-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }.cut-group + .cut-group { margin-top: 13px; padding-top: 13px; border-top: 1px solid #e9e1d8; }.cut-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; font-size: 12px; }.cut-row span:last-child { text-align: right; color: #6c5a4c; }.empty-state { color: #88796d; font-size: 13px; }
 .production-optimizer, .scrap-bank { margin-top: 18px; }.scrap-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }.scrap-settings label { margin: 0; }.board-total { display: flex; justify-content: space-between; gap: 10px; margin: 14px 0; padding: 9px; border-radius: 6px; background: #f7efe6; font-size: 12px; }.scrap-result { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 13px; }.scrap-result div { display: grid; gap: 3px; padding: 10px; border-radius: 6px; background: #f9f4ed; font-size: 12px; }.scrap-result span { color: #6c5a4c; }
 .scrap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 10px; }.scrap-card { display: grid; gap: 6px; padding: 10px; border: 1px solid #e2d5c6; border-radius: 7px; background: #fdfaf5; font-size: 12px; }.scrap-card > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }.scrap-card small { color: #6c5a4c; }.scrap-card button { padding: 4px 6px; font-size: 11px; }.status { padding: 2px 5px; border-radius: 999px; font-size: 10px; font-weight: 700; }.available { color: #17653a; background: #dff5e8; }.used { color: #7d6145; background: #eee1d1; }
+.material-settings { background: #fdf8ef; }
+.material-configuration { margin: 12px 0 0; padding: 10px; border: 1px solid #e1d3c4; border-radius: 7px; }
+.material-configuration legend { padding: 0 5px; color: #5c3820; font-weight: 800; }
+.material-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 9px; }
+.material-settings-grid label { margin: 5px 0; font-size: 11px; }
+.material-settings-grid input { padding: 6px; }
+.cut-list-material + .cut-list-material { margin-top: 14px; padding-top: 12px; border-top: 2px solid #e7dbce; }
+.cut-list-material h3, .material-cost-block h3 { margin: 0 0 7px; color: #5c3820; font-size: 12px; }
+.cut-piece-row + .cut-piece-row { border-top: 1px solid #f0e6dc; }
+.cut-piece-details { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 0 0 7px; color: #7a695c; font-size: 10px; }
+.material-boards { margin-top: 18px; border-top: 4px solid #8b5a2b; }
+.material-hardboard { border-top-color: #b98b5d; }
+.material-cost-block + .material-cost-block { margin-top: 16px; padding-top: 14px; border-top: 2px solid #e1d3c4; }
+.grand-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 13px 10px; border-radius: 7px; color: #fff; background: #5c3820; font-size: 15px; }
 @media (max-width: 900px) { .app-shell { display: block; } .viewport { height: 65vh; min-height: 400px; } }
 @media (max-width: 1050px) { .production-dashboard { grid-template-columns: 1fr; }.production-page { padding: 20px; } }
 @media (max-width: 620px) { .production-header, .board-total { display: grid; }.production-lists, .scrap-result { grid-template-columns: 1fr; }.production-page { padding: 14px; } }

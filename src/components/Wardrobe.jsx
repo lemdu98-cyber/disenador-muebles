@@ -1,28 +1,35 @@
+import { calculateBackPanelDimensions } from "../utils/backPanel";
+import Drawer from "./Drawer";
+
 export default function Wardrobe({
   width,
   height,
   depth,
   doors,
   drawers,
-  shelves
+  shelves,
+  thickness = .015,
+  backThickness = .003,
 }) {
-
-  const thickness = 0.05;
   const doorWidth = width / doors;
+  const backPanel = calculateBackPanelDimensions({
+    externalWidth: width, externalHeight: height, panelThickness: thickness, backPanelThickness: backThickness,
+    hasTop: true, hasBottom: true, furnitureDepth: depth,
+  });
 
   return (
     <group>
 
 
       {/* Lateral izquierdo */}
-      <mesh position={[-width/2,0,0]}>
+      <mesh position={[-width/2 + thickness/2,0,0]}>
         <boxGeometry args={[thickness,height,depth]} />
         <meshStandardMaterial color="#8b5a2b" />
       </mesh>
 
 
       {/* Lateral derecho */}
-      <mesh position={[width/2,0,0]}>
+      <mesh position={[width/2 - thickness/2,0,0]}>
         <boxGeometry args={[thickness,height,depth]} />
         <meshStandardMaterial color="#8b5a2b" />
       </mesh>
@@ -30,7 +37,7 @@ export default function Wardrobe({
 
 
       {/* Tapa superior */}
-      <mesh position={[0,height/2,0]}>
+      <mesh position={[0,height/2 - thickness/2,0]}>
         <boxGeometry args={[width,thickness,depth]} />
         <meshStandardMaterial color="#b07d4f" />
       </mesh>
@@ -38,7 +45,7 @@ export default function Wardrobe({
 
 
       {/* Base inferior */}
-      <mesh position={[0,-height/2,0]}>
+      <mesh position={[0,-height/2 + thickness/2,0]}>
         <boxGeometry args={[width,thickness,depth]} />
         <meshStandardMaterial color="#b07d4f" />
       </mesh>
@@ -46,9 +53,9 @@ export default function Wardrobe({
 
 
       {/* Fondo */}
-      <mesh position={[0,0,-depth/2]}>
-        <boxGeometry args={[width,height,0.03]} />
-        <meshStandardMaterial color="#d8c3a5" />
+      <mesh position={[0,0,backPanel.centerZ]}>
+        <boxGeometry args={[backPanel.width,backPanel.height,backPanel.thickness]} />
+        <meshStandardMaterial color="#b98b5d" />
       </mesh>
 
 
@@ -111,27 +118,19 @@ export default function Wardrobe({
 
       {/* Cajones */}
       {Array.from({length:drawers}).map((_,i)=>(
-
-        <mesh
+        <Drawer
           key={i}
+          width={width * 0.5}
+          height={0.25}
+          depth={depth - thickness * 2}
+          thickness={thickness}
+          baseThickness={backThickness}
           position={[
             0,
             -height/2+0.25+(i*0.35),
-            depth/2+0.04
+            0
           ]}
-        >
-
-          <boxGeometry
-            args={[
-              width*0.5,
-              0.25,
-              0.04
-            ]}
-          />
-
-          <meshStandardMaterial color="#704214"/>
-
-        </mesh>
+        />
 
       ))}
 

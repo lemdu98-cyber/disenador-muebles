@@ -1,66 +1,116 @@
 import { MATERIALS } from "./materials";
+import { calculateBackPanelDimensions } from "./backPanel";
+import { calculateDrawerBottomDimensions } from "./drawerBottom";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
-const THICKNESS_CM = MELAMINE_BOARD.thicknessMm / 10;
 const safe = (value) => Math.max(0, Number(value.toFixed(1)));
 
-const addPieces = (pieces, name, quantity, length, width, material = MATERIALS.MELAMINE) => {
+const addPieces = (pieces, name, quantity, length, width, material, details = {}) => {
   for (let index = 0; index < quantity; index += 1) {
-    const safeLength = safe(length); const safeWidth = safe(width);
-    pieces.push({ id: `${material.id}-${name}-${index + 1}`, name, length: safeLength, width: safeWidth, areaCm2: safeLength * safeWidth, material });
+    const safeLength = safe(length);
+    const safeWidth = safe(width);
+    pieces.push({
+      id: `${material.id}-${name}-${index + 1}`,
+      name,
+      length: safeLength,
+      width: safeWidth,
+      areaCm2: safeLength * safeWidth,
+      material,
+      ...details,
+    });
   }
 };
 
-const addDrawerPieces = (pieces, quantity, frontWidth, frontHeight, drawerDepth) => {
+const addDrawerPieces = (pieces, quantity, frontWidth, frontHeight, drawerDepth, melamine, hardboard, thicknessCm) => {
   const sideHeight = Math.max(8, frontHeight - 2);
-  const innerWidth = Math.max(8, frontWidth - THICKNESS_CM * 2);
-  addPieces(pieces, "Frente de cajón", quantity, frontWidth, frontHeight);
-  addPieces(pieces, "Lateral izquierdo de cajón", quantity, drawerDepth, sideHeight);
-  addPieces(pieces, "Lateral derecho de cajón", quantity, drawerDepth, sideHeight);
-  addPieces(pieces, "Parte trasera de cajón", quantity, innerWidth, sideHeight);
-  addPieces(pieces, "Base de cajón", quantity, innerWidth, drawerDepth, MATERIALS.HARDBOARD);
+  const innerWidth = Math.max(8, frontWidth - thicknessCm * 2);
+  const bottom = calculateDrawerBottomDimensions({
+    externalWidth: frontWidth,
+    externalDepth: drawerDepth,
+    internalWidth: innerWidth,
+    internalDepth: Math.max(0, drawerDepth - thicknessCm * 2),
+    panelThickness: thicknessCm,
+    bottomThickness: hardboard.thicknessMm / 10,
+  });
+  addPieces(pieces, "Frente de cajón", quantity, frontWidth, frontHeight, melamine);
+  addPieces(pieces, "Lateral izquierdo de cajón", quantity, drawerDepth, sideHeight, melamine);
+  addPieces(pieces, "Lateral derecho de cajón", quantity, drawerDepth, sideHeight, melamine);
+  addPieces(pieces, "Parte trasera de cajón", quantity, innerWidth, sideHeight, melamine);
+  addPieces(
+    pieces,
+    "Base de cartón prensado del cajón",
+    quantity,
+    bottom.width,
+    bottom.depth,
+    hardboard,
+    { location: bottom.location, installation: bottom.installation, mounting: bottom.mounting },
+  );
 };
 
 /** Complete manufacturing list. Dimensions are centimetres and each piece owns its material. */
-export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves }) {
+export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs }) {
   const pieces = [];
-  const innerWidth = widthCm - THICKNESS_CM * 2;
-  const innerHeight = heightCm - THICKNESS_CM * 2;
+  const melamine = materialConfigs?.melamine || MATERIALS.MELAMINE;
+  const hardboard = materialConfigs?.hardboard || MATERIALS.HARDBOARD;
+  const thicknessCm = melamine.thicknessMm / 10;
+  const innerWidth = widthCm - thicknessCm * 2;
+  const innerHeight = heightCm - thicknessCm * 2;
+  const backPanel = calculateBackPanelDimensions({
+    externalWidth: widthCm,
+    externalHeight: heightCm,
+    innerWidth,
+    innerHeight,
+    panelThickness: thicknessCm,
+    backPanelThickness: hardboard.thicknessMm / 10,
+    hasTop: true,
+    hasBottom: furnitureType !== "nightstand" && furnitureType !== "desk",
+    constructionMode: "external",
+    furnitureDepth: depthCm,
+  });
+  const addBackPanel = () => addPieces(
+    pieces,
+    "Fondo de cartón prensado",
+    1,
+    backPanel.width,
+    backPanel.height,
+    hardboard,
+    { location: backPanel.location, installation: backPanel.installation, mounting: backPanel.mounting },
+  );
+
   if (furnitureType === "desk") {
     const columnWidth = Math.min(widthCm * 0.3, 48);
     const drawerDepth = depthCm * 0.78;
-    addPieces(pieces, "Tapa", 1, widthCm, depthCm);
-    addPieces(pieces, "Patas laterales", 2, heightCm - THICKNESS_CM, depthCm);
-    addPieces(pieces, "Faldón posterior", 1, widthCm - 16, 22);
-    addPieces(pieces, "Fondo de cartón prensado", 1, columnWidth, heightCm - THICKNESS_CM, MATERIALS.HARDBOARD);
+    addPieces(pieces, "Tapa", 1, widthCm, depthCm, melamine);
+    addPieces(pieces, "Patas laterales", 2, heightCm - thicknessCm, depthCm, melamine);
+    addPieces(pieces, "Faldón posterior", 1, widthCm - 16, 22, melamine);
+    addBackPanel();
     if (drawers > 0) {
-      addPieces(pieces, "Laterales de cajonera", 2, heightCm - THICKNESS_CM, drawerDepth);
-      addDrawerPieces(pieces, drawers, columnWidth - THICKNESS_CM * 2, Math.min(22, (heightCm - THICKNESS_CM - 8) / drawers), drawerDepth - THICKNESS_CM);
+      addPieces(pieces, "Laterales de cajonera", 2, heightCm - thicknessCm, drawerDepth, melamine);
+      addDrawerPieces(pieces, drawers, columnWidth - thicknessCm * 2, Math.min(22, (heightCm - thicknessCm - 8) / drawers), drawerDepth - thicknessCm, melamine, hardboard, thicknessCm);
     }
   } else if (furnitureType === "tvStand") {
     const drawerWidth = drawers > 0 ? Math.min(widthCm * 0.38, 72) : 0;
     const storageHeight = heightCm * 0.48;
-    addPieces(pieces, "Tapa y base", 2, widthCm, depthCm);
-    addPieces(pieces, "Laterales", 2, innerHeight, depthCm);
-    addPieces(pieces, "Fondo de cartón prensado", 1, innerWidth, innerHeight, MATERIALS.HARDBOARD);
-    addPieces(pieces, "División horizontal", 1, innerWidth, depthCm - THICKNESS_CM);
-    addPieces(pieces, "Puertas", doors, (widthCm - drawerWidth - THICKNESS_CM * 2) / doors, storageHeight - THICKNESS_CM * 2);
-    if (drawers > 0) addDrawerPieces(pieces, drawers, drawerWidth - 1.2, storageHeight / drawers - 1.2, depthCm - THICKNESS_CM * 2);
-    if (shelves > 0) addPieces(pieces, "Repisas del nicho", shelves, innerWidth, depthCm - THICKNESS_CM);
+    addPieces(pieces, "Tapa y base", 2, widthCm, depthCm, melamine);
+    addPieces(pieces, "Laterales", 2, innerHeight, depthCm, melamine);
+    addBackPanel();
+    addPieces(pieces, "División horizontal", 1, innerWidth, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Puertas", doors, (widthCm - drawerWidth - thicknessCm * 2) / doors, storageHeight - thicknessCm * 2, melamine);
+    if (drawers > 0) addDrawerPieces(pieces, drawers, drawerWidth - 1.2, storageHeight / drawers - 1.2, depthCm - thicknessCm * 2, melamine, hardboard, thicknessCm);
+    if (shelves > 0) addPieces(pieces, "Repisas del nicho", shelves, innerWidth, depthCm - thicknessCm, melamine);
   } else if (furnitureType === "nightstand") {
-    // The nightstand rests on its two side panels: no melamine bottom is manufactured.
-    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm);
-    addPieces(pieces, "Laterales", 2, heightCm - THICKNESS_CM, depthCm);
-    addPieces(pieces, "Fondo de cartón prensado", 1, innerWidth, innerHeight, MATERIALS.HARDBOARD);
-    if (drawers > 0) addDrawerPieces(pieces, drawers, innerWidth - 1.2, (innerHeight - 4.5) / drawers, depthCm - THICKNESS_CM * 2);
-    else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - THICKNESS_CM);
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
+    addPieces(pieces, "Laterales", 2, heightCm - thicknessCm, depthCm, melamine);
+    addBackPanel();
+    if (drawers > 0) addDrawerPieces(pieces, drawers, innerWidth - 1.2, (innerHeight - 4.5) / drawers, depthCm - thicknessCm * 2, melamine, hardboard, thicknessCm);
+    else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine);
   } else {
-    addPieces(pieces, "Laterales", 2, heightCm, depthCm);
-    addPieces(pieces, "Tapa y base", 2, widthCm, depthCm);
-    addPieces(pieces, "Fondo de cartón prensado", 1, innerWidth, innerHeight, MATERIALS.HARDBOARD);
-    addPieces(pieces, "Puertas", doors, widthCm / doors, heightCm);
-    addPieces(pieces, "Repisas", shelves, widthCm - 10, depthCm);
-    if (drawers > 0) addDrawerPieces(pieces, drawers, widthCm * .5, Math.min(25, innerHeight / Math.max(drawers, 1) - 1), depthCm - THICKNESS_CM * 2);
+    addPieces(pieces, "Laterales", 2, heightCm, depthCm, melamine);
+    addPieces(pieces, "Tapa y base", 2, widthCm, depthCm, melamine);
+    addBackPanel();
+    addPieces(pieces, "Puertas", doors, widthCm / doors, heightCm, melamine);
+    addPieces(pieces, "Repisas", shelves, widthCm - 10, depthCm, melamine);
+    if (drawers > 0) addDrawerPieces(pieces, drawers, widthCm * .5, Math.min(25, innerHeight / Math.max(drawers, 1) - 1), depthCm - thicknessCm * 2, melamine, hardboard, thicknessCm);
   }
   return pieces;
 }

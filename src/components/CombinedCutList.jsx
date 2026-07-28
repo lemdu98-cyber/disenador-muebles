@@ -1,6 +1,29 @@
-export default function CombinedCutList({ grouped, consolidated }) {
+import { MATERIAL_ORDER } from "../utils/materialConfig";
+
+function MaterialCutList({ config, pieces }) {
+  const consolidated = Object.values(pieces.reduce((result, piece) => {
+    const key = `${piece.name}|${piece.length}|${piece.width}`;
+    (result[key] ||= { ...piece, quantity: 0 });
+    result[key].quantity += 1;
+    return result;
+  }, {})).sort((a, b) => b.areaCm2 - a.areaCm2);
+
+  return <section className="summary-card material-cut-list">
+    <p className="eyebrow">LISTA DE CORTE</p>
+    <h2>{config.label}</h2>
+    {consolidated.length ? consolidated.map((item) => <div className="cut-piece-row" key={`${item.name}-${item.length}-${item.width}`}>
+      <div className="cut-row"><span>{item.name}</span><b>{item.quantity} · {item.length.toFixed(1)} × {item.width.toFixed(1)} cm</b></div>
+      {item.mounting && <div className="cut-piece-details">
+        <span>{item.material.thicknessMm} mm</span>
+        <span>{item.location}</span>
+        <span>{item.installation}</span>
+      </div>}
+    </div>) : <p className="empty-state">No hay piezas de {config.label.toLowerCase()}.</p>}
+  </section>;
+}
+
+export default function CombinedCutList({ pieces, configs }) {
   return <div className="production-lists">
-    <section className="summary-card"><h2>Lista de corte por mueble</h2>{grouped.length ? grouped.map((item) => <div className="cut-group" key={item.furnitureType}><b>{item.label.toUpperCase()} ({item.quantity})</b>{item.groups.map((group) => <div key={`${item.furnitureType}-${group[0].id}`} className="cut-row"><span>{group[0].name}</span><span>{group.length * item.quantity} · {group[0].length.toFixed(1)} × {group[0].width.toFixed(1)}</span></div>)}</div>) : <p className="empty-state">Seleccione muebles para crear un pedido.</p>}</section>
-    <section className="summary-card"><h2>Lista de corte consolidada</h2>{consolidated.length ? consolidated.map((item) => <div className="cut-row" key={`${item.length}-${item.width}`}><span>{item.length} × {item.width} cm</span><b>{item.quantity} piezas</b></div>) : <p className="empty-state">Aquí se agruparán las piezas iguales.</p>}</section>
+    {MATERIAL_ORDER.map((id) => <MaterialCutList key={id} config={configs[id]} pieces={pieces.filter((piece) => piece.material.id === id)} />)}
   </div>;
 }
