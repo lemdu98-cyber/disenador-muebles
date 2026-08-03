@@ -14,3 +14,49 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Despliegue
+
+El proyecto se publica automáticamente en GitHub Pages mediante el workflow
+`.github/workflows/deploy.yml`. Cada `push` a la rama `main` instala las
+dependencias con `npm ci`, genera la versión de producción con `npm run build`
+y despliega el contenido de `dist` con las acciones oficiales de GitHub Pages.
+
+### Primer despliegue
+
+1. Confirma los cambios y envíalos a `main`:
+
+   ```bash
+   git add .
+   git commit -m "Configurar GitHub Pages"
+   git push
+   ```
+
+2. En GitHub, abre la pestaña **Actions** para seguir la ejecución de
+   **Deploy to GitHub Pages**. El entorno `github-pages` se crea durante el
+   primer despliegue y la URL publicada aparece al finalizar.
+
+El workflow utiliza la fuente **GitHub Actions** de Pages y no crea una rama
+`gh-pages` ni requiere copiar manualmente la carpeta `dist`.
+
+### Actualizaciones y despliegues futuros
+
+Cualquier cambio enviado a `main` inicia un despliegue nuevo. También se puede
+ejecutar manualmente desde **Actions > Deploy to GitHub Pages > Run workflow**
+sin modificar archivos.
+
+### Cambio de nombre del repositorio
+
+No es necesario editar `vite.config.js`. Durante GitHub Actions, Vite obtiene
+el nombre desde la variable automática `GITHUB_REPOSITORY`; en compilaciones
+locales lo obtiene del remoto Git `origin`. Después de renombrar el repositorio
+en GitHub, actualiza el remoto local y vuelve a enviar un cambio a `main`:
+
+```bash
+git remote set-url origin https://github.com/USUARIO/NUEVO-NOMBRE.git
+git push
+```
+
+La ruta base y la URL de Pages se recalcularán automáticamente para el nuevo
+nombre. Los repositorios especiales `USUARIO.github.io` utilizan `/` como ruta
+base; los demás utilizan `/NOMBRE-DEL-REPOSITORIO/`.
