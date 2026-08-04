@@ -17,7 +17,10 @@ export function calculateDrawerBottomDimensions({
   }
 
   const width = externalWidth ?? internalWidth + panelThickness * 2;
-  const depth = externalDepth ?? internalDepth + panelThickness * 2;
+  const boxDepth = externalDepth ?? internalDepth + panelThickness * 2;
+  // Extend only beneath the front panel so the bottom can be nailed around
+  // the complete structural perimeter without reaching past the front.
+  const depth = boxDepth + panelThickness;
 
   return {
     width: Math.max(0, width),
@@ -27,5 +30,6 @@ export function calculateDrawerBottomDimensions({
     location: "Parte inferior exterior del cajón",
     installation: "Clavado sobre los cuatro cantos inferiores",
     centerY: -(drawerHeight / 2 + bottomThickness / 2),
+    centerZ: panelThickness / 2,
   };
 }

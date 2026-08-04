@@ -127,7 +127,7 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
       "Travesaño frontal inferior",
       1,
       innerWidth,
-      nightstandStructure.frontDepthCm,
+      nightstandStructure.frontHeightCm,
       melamine,
       {
         mounting: "structural-front",

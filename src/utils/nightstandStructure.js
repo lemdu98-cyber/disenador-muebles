@@ -1,6 +1,6 @@
 export const DEFAULT_NIGHTSTAND_STRUCTURE = {
   rearEnabled: true, rearHeightCm: 8, frontEnabled: true,
-  frontHeightCm: 6, frontDepthCm: 8, frontSafetyGapCm: 0.5,
+  frontHeightCm: 6, frontSafetyGapCm: 0.5,
 };
 
 export const NIGHTSTAND_CROSSBAR_ERROR = "No existe espacio suficiente para instalar el travesaño frontal sin interferir con el cajón inferior.";
@@ -10,7 +10,7 @@ export function calculateNightstandStructure({ heightCm, depthCm, thicknessCm, d
   const config = { ...DEFAULT_NIGHTSTAND_STRUCTURE, ...structureConfig };
   const rearHeightCm = positive(config.rearHeightCm, 8);
   const frontHeightCm = positive(config.frontHeightCm, 6);
-  const frontDepthCm = positive(config.frontDepthCm, 8);
+  const frontThicknessCm = positive(thicknessCm, 0);
   const safetyGapCm = positive(config.frontSafetyGapCm, 0.5);
   const frontGapCm = positive(drawerFrontConfig?.gapMm, 2) / 10;
   const bottomOverlayCm = drawerFrontConfig?.type === "overlay" ? positive(drawerFrontConfig.bottomOverlayCm, 0) : 0;
@@ -22,9 +22,9 @@ export function calculateNightstandStructure({ heightCm, depthCm, thicknessCm, d
   const lowestDrawerBottomCm = -heightCm / 2 + requiredBottomSpaceCm + 0.6;
   const frontCrossbarTopCm = -heightCm / 2 + frontHeightCm;
   const hasVerticalSpace = !config.frontEnabled || !drawers || drawerBoxHeightCm >= 8;
-  const hasDepthSpace = !config.frontEnabled || (frontDepthCm > 0 && frontDepthCm <= depthCm);
+  const hasDepthSpace = !config.frontEnabled || frontThicknessCm <= depthCm;
   return {
-    config, rearHeightCm, frontHeightCm, frontDepthCm, safetyGapCm, requiredBottomSpaceCm,
+    config, rearHeightCm, frontHeightCm, frontThicknessCm, safetyGapCm, requiredBottomSpaceCm,
     drawerSlotHeightCm, drawerBoxHeightCm, lowestDrawerBottomCm, frontCrossbarTopCm,
     verticalClearanceCm: lowestDrawerBottomCm - frontCrossbarTopCm,
     valid: hasVerticalSpace && hasDepthSpace,
