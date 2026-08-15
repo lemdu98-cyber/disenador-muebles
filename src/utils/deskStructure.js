@@ -35,7 +35,7 @@ export function calculateDeskStructure({
   const dividerCenterXCm = moduleSign * (widthCm / 2 - moduleWidthCm + thicknessCm / 2);
   const drawerDepthCm = drawerDimensions?.sideLengthCm ?? 0;
   const drawerClosedCenterZCm = depthCm / 2 - drawerDepthCm / 2;
-  const drawerOpenOffsetCm = config.showOpenDrawers ? Math.min(drawerDepthCm * 0.55, 22) : 0;
+  const drawerOpenOffsetCm = calculateDrawerOpenOffsetCm(drawerDepthCm, config.showOpenDrawers);
   const firstFrontTopCm = heightCm / 2 - thicknessCm - topClearanceCm;
   const drawerLayouts = Array.from({ length: drawerCount }, (_, index) => {
     const frontTopCm = firstFrontTopCm - index * (drawerFrontHeightCm + frontGapCm);
@@ -101,3 +101,4 @@ export function calculateDeskStructure({
     error: errors.join(" "),
   };
 }
+import { calculateDrawerOpenOffsetCm } from "./drawerVisualization.js";

@@ -1,10 +1,10 @@
 import { Edges } from "@react-three/drei";
 import Drawer from "./Drawer";
+import DrawerSlides from "./DrawerSlides";
 
 const MELAMINE = "#8b5a2b";
 const TOP = "#b07d4f";
 const DIVIDER = "#9a6840";
-const METAL = "#8d969d";
 
 function MelaminePiece({ position, dimensions, color = MELAMINE }) {
   return <mesh position={position} castShadow receiveShadow>
@@ -50,11 +50,7 @@ export default function Desk({ width, height, depth, thickness, backThickness, d
         showEdges
         position={[moduleCenterX, 0, layout.centerZCm / 100]}
       />
-      {[-1, 1].map((side) => <mesh key={side} position={[moduleCenterX + side * (drawerWidth / 2 + slideThickness / 2), layout.slideCenterYCm / 100, closedDrawerCenterZ]} castShadow>
-        <boxGeometry args={[slideThickness, slideHeight, drawerDepth]} />
-        <meshStandardMaterial color={METAL} metalness={.72} roughness={.3} />
-        <Edges color="#42484d" threshold={15} scale={1.001} />
-      </mesh>)}
+      <DrawerSlides centerX={moduleCenterX} centerY={layout.slideCenterYCm / 100} closedCenterZ={closedDrawerCenterZ} drawerWidth={drawerWidth} drawerDepth={drawerDepth} slideThickness={slideThickness} slideHeight={slideHeight} openOffset={structure.drawerOpenOffsetCm / 100} />
     </group>)}
   </group>;
 }

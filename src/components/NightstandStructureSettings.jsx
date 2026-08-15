@@ -16,6 +16,7 @@ export default function NightstandStructureSettings({ config, onChange, structur
       <label>Separación física entre cajones (cm)<input type="number" min="0" step="0.1" value={config.drawerPhysicalGapCm} onChange={numericUpdate("drawerPhysicalGapCm")} /></label>
       <label>Espesor cartón prensado (mm)<input type="number" min="0.1" step="0.1" value={config.drawerBottomThicknessMm} onChange={numericUpdate("drawerBottomThicknessMm")} /></label>
     </div>
+    <label className="check-setting"><input type="checkbox" checked={config.showOpenDrawers} onChange={(event) => update({ showOpenDrawers: event.target.checked })} />Mostrar cajones abiertos</label>
     {!structure.valid && <div className="validation-error"><p>{structure.error}</p><small>Reduzca la altura o separación, modifique los cajones o aumente la altura total del mueble.</small></div>}
   </section>;
 }

@@ -2,6 +2,7 @@ export const DEFAULT_NIGHTSTAND_STRUCTURE = {
   rearEnabled: true, rearHeightCm: 8, frontEnabled: true,
   frontHeightCm: 6, frontSafetyGapCm: 0.5,
   topDrawerGapCm: 0.5, drawerPhysicalGapCm: 1, drawerBottomThicknessMm: 3,
+  showOpenDrawers: false,
 };
 
 export const NIGHTSTAND_CROSSBAR_ERROR = "No existe espacio suficiente para instalar el travesaño frontal sin interferir con el cajón inferior.";
