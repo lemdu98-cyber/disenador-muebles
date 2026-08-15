@@ -14,6 +14,10 @@ export default function Nightstand({ width, height, depth, drawers, thickness = 
   const topDepth = structure.topDepthCm / 100;
   const drawerDepth = drawerDimensions.sideLengthCm / 100;
   const drawerFront = { widthCm: structure.drawerFrontWidthCm, heightCm: structure.drawerFrontHeightCm };
+  const drawerBoxWidth = drawerDimensions.externalWidthCm / 100;
+  const cabinetInnerWidth = width - thickness * 2;
+  const slideThickness = Math.max(.004, Math.min(.008, (cabinetInnerWidth - drawerBoxWidth) / 4));
+  const slideHeight = Math.max(.012, thickness * .8);
   const backPanel = calculateBackPanelDimensions({ externalWidth: width, externalHeight: height, panelThickness: thickness, backPanelThickness: backThickness, hasTop: true, hasBottom: false, furnitureDepth: depth });
   return <group>
     <mesh position={[0, height / 2 - thickness / 2, thickness / 2]}><boxGeometry args={[width, thickness, topDepth]} /><meshStandardMaterial color={TOP} /><Edges color="#49382d" threshold={15} scale={1.001} /></mesh>
@@ -29,11 +33,14 @@ export default function Nightstand({ width, height, depth, drawers, thickness = 
       <meshStandardMaterial color={MELAMINE} />
       <Edges color="#49382d" threshold={15} scale={1.001} />
     </mesh>}
-    {drawerDimensions.hasEnoughDepth && structure.valid && Array.from({ length: drawers }).map((_, index) => {
-      const boxCenterY = height / 2 - thickness - drawerHeight / 2 - index * drawerHeight;
-      const frontCenterY = height / 2 - thickness - structure.drawerFrontHeightCm / 200 - index * ((structure.drawerFrontHeightCm + structure.frontGapCm) / 100);
-      return <Drawer key={index} width={drawerDimensions.externalWidthCm / 100} height={drawerHeight - .012} depth={drawerDepth} thickness={thickness} baseThickness={backThickness} drawerFrontConfig={drawerFrontConfig} frontDimensions={drawerFront} frontCenterYOffset={frontCenterY - boxCenterY} sideHeightOverride={structure.drawerSideHeightCm / 100} showEdges position={[0, boxCenterY, depth / 2 - drawerDepth / 2]} />;
-    })}
+    {drawerDimensions.hasEnoughDepth && structure.valid && structure.drawerGeometry.drawerLayouts.map((layout) => <group key={layout.index}>
+      <Drawer width={drawerBoxWidth} height={drawerHeight - .012} depth={drawerDepth} thickness={thickness} baseThickness={structure.drawerGeometry.bottomThicknessCm / 100} drawerFrontConfig={drawerFrontConfig} frontDimensions={drawerFront} sideHeightOverride={structure.drawerSideHeightCm / 100} physicalGeometry={{ frontCenterY: layout.frontCenterYCm / 100, structureCenterY: layout.structureCenterYCm / 100, bottomCenterY: layout.bottomCenterYCm / 100 }} showEdges position={[0, 0, depth / 2 - drawerDepth / 2]} />
+      {[-1, 1].map((side) => <mesh key={side} position={[side * (drawerBoxWidth / 2 + slideThickness / 2), layout.slideCenterYCm / 100, depth / 2 - drawerDepth / 2]} castShadow>
+        <boxGeometry args={[slideThickness, slideHeight, drawerDepth]} />
+        <meshStandardMaterial color="#8d969d" metalness={.72} roughness={.3} />
+        <Edges color="#42484d" threshold={15} scale={1.001} />
+      </mesh>)}
+    </group>)}
     {drawers === 0 && <mesh position={[0, -height * .05, 0]}><boxGeometry args={[width - thickness * 2, thickness, depth - thickness]} /><meshStandardMaterial color={MELAMINE} /></mesh>}
   </group>;
 }

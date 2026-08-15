@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getCutPieces } from "../src/utils/cutPieces.js";
-import { calculateNightstandStructure, practicalDrawerHeightCm } from "../src/utils/nightstandStructure.js";
+import { calculateNightstandDrawerGeometry, calculateNightstandStructure, practicalDrawerHeightCm } from "../src/utils/nightstandStructure.js";
 
 const design = {
   furnitureType: "nightstand",
@@ -44,4 +44,24 @@ test("front and top dimensions scale with configured width, depth and thickness"
   const structure = calculateNightstandStructure({ ...design, widthCm: 60, depthCm: 45, thicknessCm: 1.8 });
   assert.equal(structure.drawerFrontWidthCm, 60);
   assert.equal(structure.topDepthCm, 46.8);
+});
+
+test("physical drawer geometry includes the nailed bottom and exact clearances", () => {
+  const structure = calculateNightstandStructure({ ...design, thicknessCm: 1.5 });
+  const [upper, lower] = structure.drawerGeometry.drawerLayouts;
+  assert.equal(structure.drawerGeometry.topUndersideCm - upper.topCm, 0.5);
+  assert.equal(upper.bottomEdgeCm - lower.topCm, 1);
+  assert.ok(Math.abs(upper.structureBottomCm - upper.bottomEdgeCm - 0.3) < 1e-9);
+  assert.ok(Math.abs(lower.structureBottomCm - lower.bottomEdgeCm - 0.3) < 1e-9);
+  assert.ok(structure.drawerGeometry.clearanceAboveCrossbarCm >= 0.5);
+});
+
+test("impossible vertical layouts are rejected instead of deforming drawers", () => {
+  const geometry = calculateNightstandDrawerGeometry({
+    heightCm: 55, thicknessCm: 1.5, drawerCount: 2,
+    frontHeightCm: 22, sideHeightCm: 20, topGapCm: 0.5,
+    betweenGapCm: 4, bottomThicknessCm: 0.3,
+    crossbarHeightCm: 6, crossbarGapCm: 0.5,
+  });
+  assert.equal(geometry.valid, false);
 });
