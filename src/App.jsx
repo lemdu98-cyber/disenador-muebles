@@ -56,9 +56,9 @@ export default function App() {
   }), [furnitureType, widthCm, depthCm, drawers, melamineThickness, drawerSlideConfig]);
   const drawerValidationError = drawerDimensions.hasEnoughDepth ? "" : "No existe profundidad suficiente para instalar una corredera de este tamaño.";
   const nightstandStructure = useMemo(() => calculateNightstandStructure({
-    heightCm, depthCm, thicknessCm: melamineThickness * 100, drawers, drawerFrontConfig,
+    widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, drawers, drawerFrontConfig,
     structureConfig: nightstandStructureConfig,
-  }), [heightCm, depthCm, melamineThickness, drawers, drawerFrontConfig, nightstandStructureConfig]);
+  }), [widthCm, heightCm, depthCm, melamineThickness, drawers, drawerFrontConfig, nightstandStructureConfig]);
   const structureValidationError = isNightstand ? nightstandStructure.error : "";
   const designValidationError = drawerValidationError || structureValidationError;
   const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, nightstandStructureConfig, drawerValidationError, structureValidationError, designValidationError };
@@ -101,7 +101,7 @@ export default function App() {
       {isCatHouse ? <CatHouseSettings config={catHouseConfig} onChange={setCatHouseConfig} thicknessMm={materialConfigs.melamine.thicknessMm} /> : <>
         {isNightstand && <NightstandStructureSettings config={nightstandStructureConfig} onChange={setNightstandStructureConfig} structure={nightstandStructure} />}
         <DrawerSlideSettings config={drawerSlideConfig} onChange={setDrawerSlideConfig} dimensions={drawerDimensions} disabled={!drawers} />
-        <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} />
+        <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} frontWidthCm={isNightstand ? widthCm : undefined} forceOverlay={isNightstand} />
       </>}
       {activeModule === "design" && <>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />

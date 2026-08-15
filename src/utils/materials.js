@@ -1,4 +1,4 @@
-import { DEFAULT_MATERIAL_CONFIG } from "./materialConfig";
+import { DEFAULT_MATERIAL_CONFIG } from "./materialConfig.js";
 
 export const MATERIALS = {
   MELAMINE: DEFAULT_MATERIAL_CONFIG.melamine,

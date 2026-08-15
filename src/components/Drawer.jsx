@@ -14,9 +14,12 @@ export default function Drawer({
   thickness = .015,
   baseThickness = .003,
   drawerFrontConfig,
+  frontDimensions,
+  frontCenterYOffset = 0,
+  sideHeightOverride,
   showEdges = false,
 }) {
-  const sideHeight = Math.max(height * .72, .05);
+  const sideHeight = sideHeightOverride ?? Math.max(height * .72, .05);
   const bottom = calculateDrawerBottomDimensions({
     externalWidth: width,
     externalDepth: depth,
@@ -26,14 +29,15 @@ export default function Drawer({
     bottomThickness: baseThickness,
     drawerHeight: height,
   });
-  const front = calculateDrawerFrontDimensions({
+  const calculatedFront = calculateDrawerFrontDimensions({
     boxWidthCm: width * 100,
     boxFrontHeightCm: height * 100,
     drawerFrontConfig,
   });
+  const front = frontDimensions ? { ...calculatedFront, ...frontDimensions } : calculatedFront;
 
   return <group position={position}>
-    <mesh position={[0, (front.topOverlayCm - front.bottomOverlayCm) / 200, depth / 2 + thickness / 2]}><boxGeometry args={[front.widthCm / 100, front.heightCm / 100, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
+    <mesh position={[0, (front.topOverlayCm - front.bottomOverlayCm) / 200 + frontCenterYOffset, depth / 2 + thickness / 2]}><boxGeometry args={[front.widthCm / 100, front.heightCm / 100, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
     {[-1, 1].map((side) => <mesh key={side} position={[side * (width / 2 - thickness / 2), -height / 2 + sideHeight / 2, 0]}><boxGeometry args={[thickness, sideHeight, depth]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>)}
     <mesh position={[0, -height / 2 + sideHeight / 2, -depth / 2 + thickness / 2]}><boxGeometry args={[width - thickness * 2, sideHeight, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
     <mesh position={[0, bottom.centerY, bottom.centerZ]}><boxGeometry args={[bottom.width, bottom.thickness, bottom.depth]} /><meshStandardMaterial color={HARDBOARD} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
