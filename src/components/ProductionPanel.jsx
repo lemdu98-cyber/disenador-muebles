@@ -16,6 +16,8 @@ import { DEFAULT_OPTIMIZER_SETTINGS } from "../utils/optimizer/optimizerConfig";
 import { createFixedProduction, getAddedPieces, optimizeProductionAdditions } from "../utils/production/ProductionManager";
 import { loadProduction, saveProduction } from "../utils/production/BoardSerializer";
 import { BOARD_STATES, setBoardsStatus } from "../utils/production/BoardStateManager";
+import HardwareSummary from "./HardwareSummary";
+import { getOrderHardware } from "../utils/hardware";
 
 const BANK_KEY = "mueblecad-scrap-bank";
 
@@ -32,6 +34,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const setQuantity = (furnitureType, quantity) => setOrderItems((items) => items.map((item) => item.furnitureType === furnitureType ? { ...item, quantity: Math.max(0, Math.min(10, quantity)) } : item));
   const effectiveOrderItems = useMemo(() => orderItems.map((item) => item.furnitureType === design.furnitureType ? { ...item, params: { ...design } } : item), [orderItems, design]);
   const pieces = useMemo(() => getOrderPieces(effectiveOrderItems, materialConfigs), [effectiveOrderItems, materialConfigs]);
+  const hardwareItems = useMemo(() => getOrderHardware(effectiveOrderItems), [effectiveOrderItems]);
   const optimizationKey = useMemo(() => JSON.stringify({
     pieces: pieces.map(({ id, length, width, grainDirection, material }) => ({ id, length, width, grainDirection, materialId: material.id })),
     materialConfigs,
@@ -143,6 +146,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
     <div className="production-dashboard">
       <div className="production-selection">
         <section className="summary-card"><h2>Selección de muebles</h2>{effectiveOrderItems.map((item) => <ProductionCounter key={item.furnitureType} label={item.label} quantity={item.quantity} onChange={(quantity) => setQuantity(item.furnitureType, quantity)} />)}</section>
+        <HardwareSummary items={hardwareItems} />
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
         <OptimizerSettings settings={optimizerSettings} onChange={setOptimizerSettings} />
         <section className="summary-card economic-summary"><h2>Resumen económico</h2>{MATERIAL_ORDER.map((id) => <MaterialCostSummary key={id} config={materialConfigs[id]} costs={costs[id]} />)}<div className="grand-total"><span>Costo total materiales</span><b>{totalCost.toFixed(2)} Bs</b></div></section>

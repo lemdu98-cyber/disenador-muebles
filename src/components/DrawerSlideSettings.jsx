@@ -2,12 +2,12 @@ import { DRAWER_SLIDE_LENGTHS_MM, DRAWER_SLIDE_TYPES } from "../utils/drawerSlid
 
 const cm = (value) => Number(value).toLocaleString("es-BO", { maximumFractionDigits: 2 });
 
-export default function DrawerSlideSettings({ config, onChange, dimensions, disabled }) {
+export default function DrawerSlideSettings({ config, onChange, dimensions, disabled, forceTelescopic = false }) {
   const update = (patch) => onChange({ ...config, ...patch });
   const numericUpdate = (key) => (event) => update({ [key]: Math.max(0, Number(event.target.value) || 0) });
   return <section className="configuration slide-settings">
     <h2>Configuración de correderas</h2>
-    <label>Tipo de corredera<select value={config.type} onChange={(event) => update({ type: event.target.value })} disabled={disabled}>
+    <label>Tipo de corredera<select value={forceTelescopic ? "telescopic" : config.type} onChange={(event) => update({ type: event.target.value })} disabled={disabled || forceTelescopic}>
       {Object.entries(DRAWER_SLIDE_TYPES).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
     </select></label>
     {config.type === "concealed" && <label>Holgura lateral por lado (cm)<input type="number" min="0" step="0.01" value={config.concealedClearanceCm} onChange={numericUpdate("concealedClearanceCm")} /></label>}

@@ -4,6 +4,7 @@ import { calculateDrawerBottomDimensions } from "./drawerBottom.js";
 import { calculateDrawerSlideDimensions } from "./drawerSlides.js";
 import { calculateDrawerFrontDimensions } from "./drawerFront.js";
 import { calculateNightstandStructure } from "./nightstandStructure.js";
+import { calculateDeskStructure } from "./deskStructure.js";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
 const safe = (value) => Math.max(0, Number(value.toFixed(2)));
@@ -53,19 +54,24 @@ const addDrawerPieces = (pieces, quantity, boxWidth, boxFrontHeight, drawerDepth
 };
 
 /** Complete manufacturing list. Dimensions are centimetres and each piece owns its material. */
-export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig }) {
+export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig, deskConfig }) {
   const pieces = [];
   const melamine = materialConfigs?.melamine || MATERIALS.MELAMINE;
   const hardboard = materialConfigs?.hardboard || MATERIALS.HARDBOARD;
   const thicknessCm = melamine.thicknessMm / 10;
   const innerWidth = widthCm - thicknessCm * 2;
   const innerHeight = heightCm - thicknessCm * 2;
-  const drawerDimensions = calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers, thicknessCm, drawerSlideConfig });
+  const drawerDimensions = calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers, thicknessCm, drawerSlideConfig, deskConfig });
   if (!drawerDimensions.hasEnoughDepth) return [];
   const nightstandStructure = calculateNightstandStructure({
     widthCm, heightCm, depthCm, thicknessCm, drawers, drawerFrontConfig, structureConfig: nightstandStructureConfig,
   });
+  const deskStructure = calculateDeskStructure({
+    widthCm, heightCm, depthCm, thicknessCm, bottomThicknessCm: hardboard.thicknessMm / 10,
+    drawers, drawerDimensions, deskConfig,
+  });
   if (furnitureType === "nightstand" && !nightstandStructure.valid) return [];
+  if (furnitureType === "desk" && !deskStructure.valid) return [];
   const backPanel = calculateBackPanelDimensions({
     externalWidth: widthCm,
     externalHeight: heightCm,
@@ -99,14 +105,33 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
       mounting: "external",
     });
   } else if (furnitureType === "desk") {
-    const drawerDepth = depthCm * 0.78;
-    addPieces(pieces, "Tapa", 1, widthCm, depthCm, melamine);
-    addPieces(pieces, "Patas laterales", 2, heightCm - thicknessCm, depthCm, melamine);
-    addPieces(pieces, "Faldón posterior", 1, widthCm - 16, 22, melamine);
-    addBackPanel();
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
+    addPieces(pieces, "Lateral izquierdo", 1, deskStructure.legHeightCm, depthCm, melamine);
+    addPieces(pieces, "Lateral derecho", 1, deskStructure.legHeightCm, depthCm, melamine);
+    addPieces(pieces, "Travesaño trasero", 1, innerWidth, deskStructure.rearCrossbarHeightCm, melamine, {
+      mounting: "structural-rear", location: "Parte posterior bajo la tapa", installation: "Atornillado entre ambos laterales",
+    });
     if (drawers > 0) {
-      addPieces(pieces, "Laterales de cajonera", 2, heightCm - thicknessCm, drawerDepth, melamine);
-      addDrawerPieces(pieces, drawers, drawerDimensions.externalWidthCm, Math.min(22, (heightCm - thicknessCm - 8) / drawers), drawerDimensions.sideLengthCm, melamine, hardboard, thicknessCm, drawerFrontConfig);
+      addPieces(pieces, "Divisor módulo de cajones", 1, deskStructure.legHeightCm, depthCm - thicknessCm, melamine);
+      addPieces(pieces, "Refuerzo inferior módulo de cajones", 1, deskStructure.drawerOpeningWidthCm, deskStructure.moduleBraceHeightCm, melamine, {
+        mounting: "structural-module", location: "Parte frontal inferior del módulo", installation: "Atornillado entre lateral y divisor",
+      });
+      const bottom = calculateDrawerBottomDimensions({
+        externalWidth: drawerDimensions.externalWidthCm,
+        externalDepth: deskStructure.drawerDepthCm,
+        panelThickness: thicknessCm,
+        bottomThickness: hardboard.thicknessMm / 10,
+      });
+      const frontNames = ["Frente cajón superior", "Frente cajón central", "Frente cajón inferior"];
+      for (let index = 0; index < drawers; index += 1) {
+        addPieces(pieces, frontNames[index] || `Frente cajón ${index + 1}`, 1, deskStructure.drawerFrontWidthCm, deskStructure.drawerFrontHeightCm, melamine);
+      }
+      addPieces(pieces, "Lateral izquierdo de cajón", drawers, deskStructure.drawerDepthCm, deskStructure.drawerSideHeightCm, melamine);
+      addPieces(pieces, "Lateral derecho de cajón", drawers, deskStructure.drawerDepthCm, deskStructure.drawerSideHeightCm, melamine);
+      addPieces(pieces, "Parte trasera de cajón", drawers, drawerDimensions.backWidthCm, deskStructure.drawerSideHeightCm, melamine);
+      addPieces(pieces, "Base de cartón prensado del cajón", drawers, bottom.width, bottom.depth, hardboard, {
+        location: bottom.location, installation: bottom.installation, mounting: bottom.mounting,
+      });
     }
   } else if (furnitureType === "tvStand") {
     const drawerWidth = drawers > 0 ? Math.min(widthCm * 0.38, 72) : 0;

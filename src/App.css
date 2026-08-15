@@ -1,5 +1,5 @@
-.app-shell { min-height: 100vh; display: grid; grid-template-columns: 25% 75%; background: #f5f1eb; }
-.control-panel { min-width: 0; padding: 26px 22px; overflow-y: auto; background: #fffdf9; border-right: 1px solid #e6ded3; }
+.app-shell { height: 100vh; min-height: 100vh; display: grid; grid-template-columns: 25% 75%; overflow: hidden; background: #f5f1eb; }
+.control-panel { min-width: 0; height: 100vh; box-sizing: border-box; padding: 26px 22px; overflow-y: auto; background: #fffdf9; border-right: 1px solid #e6ded3; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 4px; font-size: 25px; color: #3c2717; }
 h2 { margin-bottom: 10px; font-size: 15px; color: #5c3820; }
@@ -109,6 +109,6 @@ li + li { margin-top: 7px; }
 .editable-piece.selected { z-index: 2; outline: 3px solid #ffdc5e; outline-offset: 1px; }
 .editable-piece.invalid { z-index: 3; background: #c62828 !important; outline: 3px solid #ff8a80; }
 .editable-piece span, .editable-piece small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
-@media (max-width: 900px) { .app-shell { display: block; } .viewport { height: 65vh; min-height: 400px; } }
+@media (max-width: 900px) { .app-shell { display: block; height: auto; overflow: visible; }.control-panel { height: auto; overflow: visible; } .viewport { height: 65vh; min-height: 400px; } }
 @media (max-width: 1050px) { .production-dashboard { grid-template-columns: 1fr; }.production-page { padding: 20px; } }
 @media (max-width: 620px) { .production-header, .board-total { display: grid; }.production-lists, .scrap-result { grid-template-columns: 1fr; }.production-page { padding: 14px; } }
