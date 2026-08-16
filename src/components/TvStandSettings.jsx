@@ -7,6 +7,7 @@ export default function TvStandSettings({ config, onChange, structure }) {
     <h2>Estructura del TV Stand</h2>
     <label>Altura de repisa interior (cm)<input type="number" min="1" step="0.1" value={config.shelfHeightCm} onChange={numericUpdate("shelfHeightCm")} /></label>
     <label className="check-setting"><input type="checkbox" checked={config.dividerEnabled} onChange={(event) => update({ dividerEnabled: event.target.checked })} />Activar divisor central</label>
+    <h2>Travesaños traseros</h2>
     <label className="check-setting"><input type="checkbox" checked={config.upperRearEnabled} onChange={(event) => update({ upperRearEnabled: event.target.checked })} />Activar travesaño trasero superior</label>
     <label>Altura del travesaño superior (cm)<input type="number" min="1" step="0.1" value={config.upperRearHeightCm} disabled={!config.upperRearEnabled} onChange={numericUpdate("upperRearHeightCm")} /></label>
     <label className="check-setting"><input type="checkbox" checked={config.lowerRearEnabled} onChange={(event) => update({ lowerRearEnabled: event.target.checked })} />Activar travesaño trasero inferior</label>

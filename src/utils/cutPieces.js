@@ -148,14 +148,13 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
       addPieces(pieces, "Repisa izquierda", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
       addPieces(pieces, "Repisa derecha", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
     } else addPieces(pieces, "Repisa interior", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
-    const addRearBraces = (position, height) => {
-      if (structure.config.dividerEnabled) {
-        addPieces(pieces, `Travesaño trasero ${position} izquierdo`, 1, structure.shelfSpanCm, height, melamine);
-        addPieces(pieces, `Travesaño trasero ${position} derecho`, 1, structure.shelfSpanCm, height, melamine);
-      } else addPieces(pieces, `Travesaño trasero ${position}`, 1, structure.shelfSpanCm, height, melamine);
-    };
-    if (structure.config.upperRearEnabled) addRearBraces("superior", structure.upperRearHeightCm);
-    if (structure.config.lowerRearEnabled) addRearBraces("inferior", structure.lowerRearHeightCm);
+    if (structure.config.upperRearEnabled) addPieces(pieces, "Travesaño trasero superior", 1, structure.innerWidthCm, structure.upperRearHeightCm, melamine);
+    if (structure.config.lowerRearEnabled) addPieces(pieces, "Travesaño trasero inferior", 1, structure.innerWidthCm, structure.lowerRearHeightCm, melamine);
+    addPieces(pieces, "Fondo trasero completo", 1, widthCm, heightCm, hardboard, {
+      mounting: "external-rear",
+      location: "Parte posterior exterior completa",
+      installation: "Clavado sobre todo el perímetro posterior",
+    });
   } else if (furnitureType === "nightstand") {
     addPieces(pieces, "Tapa superior", 1, widthCm, nightstandStructure.topDepthCm, melamine);
     addPieces(pieces, "Laterales", 2, heightCm - thicknessCm, depthCm, melamine);
