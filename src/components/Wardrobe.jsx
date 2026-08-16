@@ -18,14 +18,15 @@ export default function Wardrobe({ height, depth, thickness = .015, backThicknes
   const s = structure, cfg = s.config, opening = s.openingWidthCm / 100, drawerWidth = s.drawerBoxWidthCm / 100, drawerDepth = s.drawerDepthCm / 100;
   const shelfDepth = depth - thickness, rodLength = Math.max(0, opening - .04);
   return <group>
+    <Panel position={[0, height / 2 - thickness / 2, 0]} size={[s.externalWidthCm / 100, thickness, depth]} color={TOP} />
     {s.bodyCentersXCm.map((x, index) => <group key={`module-${index}`}>
-      <Panel position={[s.topCentersXCm[index] / 100, height / 2 - thickness / 2, 0]} size={[s.topWidthCm / 100, thickness, depth]} color={TOP} />
-      <Panel position={[x / 100, -height / 2 + thickness / 2, 0]} size={[opening, thickness, depth]} color={TOP} />
       <Panel position={[x / 100, s.upperShelfYCm / 100, 0]} size={[opening, thickness, shelfDepth]} />
       <Panel position={[s.backLayouts[index].centerXCm / 100, 0, -depth / 2 - backThickness / 2]} size={[s.backLayouts[index].widthCm / 100, height, backThickness]} color={HARDBOARD} transparent={cfg.showStructure} />
+      {[1, -1].map((side) => <Panel key={`crossbar-${side}`} position={[x / 100, -height / 2 + s.lowerCrossbarHeightCm / 200, side * (depth / 2 - thickness / 2)]} size={[opening, s.lowerCrossbarHeightCm / 100, thickness]} />)}
     </group>)}
     {s.panelCentersXCm.map((x, index) => <Panel key={`vertical-${index}`} position={[x / 100, -thickness / 2, 0]} size={[thickness, height - thickness, depth]} />)}
     {[0, 2].map((bodyIndex) => <Panel key={`drawer-shelf-${bodyIndex}`} position={[s.bodyCentersXCm[bodyIndex] / 100, s.drawerShelfYCm / 100, 0]} size={[opening, thickness, shelfDepth]} />)}
+    {s.intermediateShelfYCentersCm.map((y, index) => <Panel key={`intermediate-${index}`} position={[s.bodyCentersXCm[0] / 100, y / 100, 0]} size={[opening, thickness, shelfDepth]} />)}
     {s.shoeShelfYCentersCm.map((y, index) => <Panel key={`shoe-${index}`} position={[s.bodyCentersXCm[1] / 100, y / 100, 0]} size={[opening, thickness, shelfDepth]} />)}
     <Rod centerX={s.bodyCentersXCm[1] / 100} y={s.rodYCm / 100} length={rodLength} />
     <Rod centerX={s.bodyCentersXCm[2] / 100} y={s.rodYCm / 100} length={rodLength} />

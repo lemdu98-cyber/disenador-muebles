@@ -174,18 +174,21 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
     else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine);
   } else {
     const s = wardrobeStructure;
-    for (let body = 1; body <= 3; body += 1) addPieces(pieces, `Tapa superior Cuerpo ${body}`, 1, s.topWidthCm, depthCm, melamine);
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
     addPieces(pieces, "Lateral izquierdo", 1, s.sideHeightCm, depthCm, melamine);
     addPieces(pieces, "Lateral derecho", 1, s.sideHeightCm, depthCm, melamine);
     addPieces(pieces, "Divisor vertical Cuerpo 1 / Cuerpo 2", 1, s.sideHeightCm, depthCm, melamine);
     addPieces(pieces, "Divisor vertical Cuerpo 2 / Cuerpo 3", 1, s.sideHeightCm, depthCm, melamine);
     for (let body = 1; body <= 3; body += 1) {
-      addPieces(pieces, `Base inferior Cuerpo ${body}`, 1, s.openingWidthCm, depthCm, melamine);
+      addPieces(pieces, `Travesaño frontal inferior Cuerpo ${body}`, 1, s.openingWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-front", location: `Parte frontal inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales y apoyado al piso" });
+      addPieces(pieces, `Travesaño trasero inferior Cuerpo ${body}`, 1, s.openingWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-rear", location: `Parte trasera inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales, delante del fondo" });
       addPieces(pieces, `Repisa superior Cuerpo ${body}`, 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
       addPieces(pieces, `Puerta Cuerpo ${body}`, 1, s.doorHeightCm, s.doorWidthCm, melamine);
       addPieces(pieces, `Fondo cartón prensado Cuerpo ${body}`, 1, s.backLayouts[body - 1].widthCm, heightCm, hardboard, { mounting: "external-rear", location: `Parte posterior exterior del Cuerpo ${body}`, installation: "Clavado sobre el perímetro posterior correspondiente" });
     }
     addPieces(pieces, "Repisa sobre cajones Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Repisa intermedia 1 Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Repisa intermedia 2 Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     addPieces(pieces, "Repisa sobre cajones Cuerpo 3", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     for (let shelf = 1; shelf <= shelves; shelf += 1) addPieces(pieces, `Repisa zapatos ${shelf} Cuerpo 2`, 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     const front = calculateDrawerFrontDimensions({ boxWidthCm: s.drawerBoxWidthCm, boxFrontHeightCm: s.drawerFrontHeightCm, drawerFrontConfig });

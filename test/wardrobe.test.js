@@ -23,19 +23,34 @@ test("default wardrobe calculates three equal useful bodies", () => {
   assert.equal(structure.shoeShelfYCentersCm.length, 3);
 });
 
-test("cut list contains modular tops, bases, backs, doors and explicitly named drawers", () => {
+test("cut list contains one top, six crossbars, modular backs and explicitly named drawers", () => {
   const materialConfigs = createMaterialConfig();
   const pieces = getCutPieces({ ...design, materialConfigs });
   const countMatching = (pattern) => pieces.filter((piece) => pattern.test(piece.name)).length;
-  assert.equal(countMatching(/^Tapa superior Cuerpo/), 3);
-  assert.equal(countMatching(/^Base inferior Cuerpo/), 3);
+  assert.equal(countMatching(/^Tapa superior$/), 1);
+  assert.equal(countMatching(/^Tapa superior Cuerpo/), 0);
+  assert.equal(countMatching(/^Base inferior Cuerpo/), 0);
+  assert.equal(countMatching(/^Travesaño (frontal|trasero) inferior Cuerpo/), 6);
   assert.equal(countMatching(/^Repisa superior Cuerpo/), 3);
   assert.equal(countMatching(/^Puerta Cuerpo/), 3);
   assert.equal(countMatching(/^Fondo cartón prensado Cuerpo/), 3);
   assert.equal(countMatching(/^Frente Cajón/), 6);
   assert.equal(countMatching(/^Base cartón prensado Cajón/), 6);
   assert.equal(countMatching(/^Repisa zapatos/), 3);
+  assert.equal(countMatching(/^Repisa intermedia [12] Cuerpo 1/), 2);
   assert.equal(validateAllFurniturePieces(pieces, materialConfigs).valid, true);
+});
+
+test("drawers and shoe shelves start above crossbars and intermediate shelves split three equal clearances", () => {
+  const structure = structureFor();
+  const lowestDrawerBottom = structure.drawerLayouts[0].centerYCm - structure.drawerFrontHeightCm / 2;
+  assert.ok(lowestDrawerBottom > structure.lowerStructureTopCm);
+  assert.ok(structure.shoeShelfYCentersCm[0] - .75 > structure.lowerStructureTopCm);
+  const lowerTop = structure.drawerShelfYCm + .75;
+  const upperBottom = structure.upperShelfYCm - .75;
+  const [first, second] = structure.intermediateShelfYCentersCm;
+  const clearances = [first - .75 - lowerTop, second - .75 - (first + .75), upperBottom - (second + .75)];
+  assert.ok(clearances.every((gap) => Math.abs(gap - clearances[0]) < 1e-9));
 });
 
 test("every modular hardboard back is individually validated", () => {

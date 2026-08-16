@@ -4,6 +4,7 @@ export default function WardrobeSettings({ config, onChange, structure }) {
     <label>Altura compartimento superior (cm)<input type="number" min="25" step="1" value={config.upperCompartmentHeightCm} onChange={update("upperCompartmentHeightCm")} /></label>
     <label>Altura zona de cajones (cm)<input type="number" min="25" step="1" value={config.drawerRegionHeightCm} onChange={update("drawerRegionHeightCm")} /></label>
     <label>Altura zona zapatero (cm)<input type="number" min="35" step="1" value={config.shoeRegionHeightCm} onChange={update("shoeRegionHeightCm")} /></label>
+    <label>Altura travesaño inferior (cm)<input type="number" min="5" step="1" value={config.lowerCrossbarHeightCm} onChange={update("lowerCrossbarHeightCm")} /></label>
     <label className="checkbox-row"><input type="checkbox" checked={config.showDoors} onChange={update("showDoors")} /> Mostrar puertas</label>
     <label className="checkbox-row"><input type="checkbox" checked={config.showOpenDoors} onChange={update("showOpenDoors")} /> Mostrar puertas abiertas</label>
     <label className="checkbox-row"><input type="checkbox" checked={config.showOpenDrawers} onChange={update("showOpenDrawers")} /> Mostrar cajones abiertos</label>

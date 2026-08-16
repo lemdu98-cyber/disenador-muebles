@@ -6,6 +6,7 @@ export const DEFAULT_WARDROBE_CONFIG = {
   upperCompartmentHeightCm: 38,
   drawerRegionHeightCm: 58,
   shoeRegionHeightCm: 68,
+  lowerCrossbarHeightCm: 8,
   doorGapCm: .3,
   doorEdgeGapCm: .2,
   rodDropCm: 9,
@@ -28,30 +29,38 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const openingWidthCm = (widthCm - thicknessCm * 4) / bodyCount;
   const panelCentersXCm = Array.from({ length: 4 }, (_, index) => -widthCm / 2 + thicknessCm / 2 + index * (openingWidthCm + thicknessCm));
   const bodyCentersXCm = Array.from({ length: bodyCount }, (_, index) => panelCentersXCm[index] + thicknessCm / 2 + openingWidthCm / 2);
-  const topWidthCm = widthCm / bodyCount;
-  const topCentersXCm = [-topWidthCm, 0, topWidthCm];
   const backEdgesXCm = [-widthCm / 2, (panelCentersXCm[1] + panelCentersXCm[0]) / 2 + (openingWidthCm + thicknessCm) / 2, (panelCentersXCm[2] + panelCentersXCm[1]) / 2 + (openingWidthCm + thicknessCm) / 2, widthCm / 2];
   const backLayouts = Array.from({ length: 3 }, (_, index) => ({ widthCm: backEdgesXCm[index + 1] - backEdgesXCm[index], centerXCm: (backEdgesXCm[index + 1] + backEdgesXCm[index]) / 2 }));
   const upperCompartmentHeightCm = num(config.upperCompartmentHeightCm, 38);
   const upperShelfYCm = heightCm / 2 - thicknessCm - upperCompartmentHeightCm - thicknessCm / 2;
+  const lowerCrossbarHeightCm = num(config.lowerCrossbarHeightCm, 8);
+  const lowerStructureTopCm = -heightCm / 2 + lowerCrossbarHeightCm;
   const drawerRegionHeightCm = num(config.drawerRegionHeightCm, 58);
   const drawerGapCm = Math.max(.2, num(config.doorGapCm, .3));
   const drawerFrontHeightCm = (drawerRegionHeightCm - drawerGapCm * (drawersPerBody + 1)) / drawersPerBody;
   const drawerSideHeightCm = drawerFrontHeightCm - 2;
-  const drawerShelfYCm = -heightCm / 2 + thicknessCm + drawerRegionHeightCm + thicknessCm / 2;
+  const drawerShelfYCm = lowerStructureTopCm + drawerRegionHeightCm + thicknessCm / 2;
+  const drawerShelfTopCm = drawerShelfYCm + thicknessCm / 2;
+  const upperShelfBottomCm = upperShelfYCm - thicknessCm / 2;
+  const intermediateFreeHeightCm = upperShelfBottomCm - drawerShelfTopCm - thicknessCm * 2;
+  const intermediateGapCm = intermediateFreeHeightCm / 3;
+  const intermediateShelfYCentersCm = [
+    drawerShelfTopCm + intermediateGapCm + thicknessCm / 2,
+    drawerShelfTopCm + intermediateGapCm * 2 + thicknessCm * 1.5,
+  ];
   const drawerDepthCm = drawerDimensions?.sideLengthCm || 0;
   const drawerOpenOffsetCm = calculateDrawerOpenOffsetCm(drawerDepthCm, config.showOpenDrawers);
   const drawerLayouts = [0, 2].flatMap((bodyIndex) => Array.from({ length: drawersPerBody }, (_, drawerIndex) => ({
     bodyIndex, drawerIndex,
     centerXCm: bodyCentersXCm[bodyIndex],
-    centerYCm: -heightCm / 2 + thicknessCm + drawerGapCm + drawerFrontHeightCm / 2 + drawerIndex * (drawerFrontHeightCm + drawerGapCm),
+    centerYCm: lowerStructureTopCm + drawerGapCm + drawerFrontHeightCm / 2 + drawerIndex * (drawerFrontHeightCm + drawerGapCm),
     centerZCm: depthCm / 2 - drawerDepthCm / 2 + drawerOpenOffsetCm,
   })));
   const shoeRegionHeightCm = num(config.shoeRegionHeightCm, 68);
   const shoeSpacingCm = shoeRegionHeightCm / (shoeShelfCount + 1);
-  const shoeShelfYCentersCm = Array.from({ length: shoeShelfCount }, (_, index) => -heightCm / 2 + thicknessCm + shoeSpacingCm * (index + 1));
+  const shoeShelfYCentersCm = Array.from({ length: shoeShelfCount }, (_, index) => lowerStructureTopCm + shoeSpacingCm * (index + 1));
   const rodYCm = upperShelfYCm - thicknessCm / 2 - num(config.rodDropCm, 9);
-  const body2HangingBottomCm = -heightCm / 2 + thicknessCm + shoeRegionHeightCm;
+  const body2HangingBottomCm = lowerStructureTopCm + shoeRegionHeightCm;
   const body3HangingBottomCm = drawerShelfYCm + thicknessCm / 2;
   const body2HangingHeightCm = rodYCm - body2HangingBottomCm;
   const body3HangingHeightCm = rodYCm - body3HangingBottomCm;
@@ -64,15 +73,18 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   if (widthCm <= thicknessCm * 4 || heightCm <= thicknessCm * 3 || depthCm <= thicknessCm * 2) errors.push("Las dimensiones exteriores no permiten construir tres cuerpos.");
   if (openingWidthCm < 45) errors.push("Cada cuerpo debe conservar al menos 45 cm de ancho útil.");
   if (upperCompartmentHeightCm < 25 || upperCompartmentHeightCm > heightCm * .3) errors.push("El compartimento superior debe tener una altura útil razonable.");
+  if (lowerCrossbarHeightCm < 5 || lowerCrossbarHeightCm >= drawerRegionHeightCm / 2) errors.push("La altura del travesaño inferior debe ser estructuralmente útil y compatible con los cajones.");
   if (shoeShelfCount < WARDROBE_LIMITS.shoeShelves.min || shoeShelfCount > WARDROBE_LIMITS.shoeShelves.max) errors.push(`El zapatero admite entre ${WARDROBE_LIMITS.shoeShelves.min} y ${WARDROBE_LIMITS.shoeShelves.max} repisas.`);
   if (shoeSpacingCm < num(config.minimumShoeSpacingCm, 14)) errors.push("Las repisas del zapatero quedarían demasiado juntas.");
   if (drawerFrontHeightCm < MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM || drawerSideHeightCm < 8) errors.push("Los cajones resultarían demasiado bajos para ser fabricables.");
+  if (intermediateGapCm < 20) errors.push("No existe altura suficiente para distribuir simétricamente las repisas intermedias del Cuerpo 1.");
   if (!drawerDimensions?.hasEnoughDepth) errors.push(`La corredera de ${drawerDepthCm.toFixed(1)} cm es demasiado larga para el fondo disponible.`);
   if (body2HangingHeightCm < num(config.minimumHangingHeightCm, 85) || body3HangingHeightCm < num(config.minimumHangingHeightCm, 85)) errors.push("La altura disponible para ropa colgada es insuficiente.");
   return {
-    config, bodyCount, drawersPerBody, totalDrawers: drawersPerBody * 2, sideHeightCm, openingWidthCm,
-    panelCentersXCm, bodyCentersXCm, topWidthCm, topCentersXCm, backLayouts, upperCompartmentHeightCm, upperShelfYCm,
-    drawerRegionHeightCm, drawerFrontHeightCm, drawerSideHeightCm, drawerShelfYCm,
+    config, bodyCount, drawersPerBody, totalDrawers: drawersPerBody * 2, externalWidthCm: widthCm, sideHeightCm, openingWidthCm,
+    panelCentersXCm, bodyCentersXCm, backLayouts, upperCompartmentHeightCm, upperShelfYCm,
+    lowerCrossbarHeightCm, lowerStructureTopCm, drawerRegionHeightCm, drawerFrontHeightCm, drawerSideHeightCm, drawerShelfYCm,
+    intermediateFreeHeightCm, intermediateGapCm, intermediateShelfYCentersCm,
     drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
     rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm,
     doorGapCm, edgeGapCm, drawerBoxWidthCm,
