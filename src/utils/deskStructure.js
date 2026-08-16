@@ -1,3 +1,5 @@
+import { DESK_DRAWER_LIMITS, MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "./drawerLimits.js";
+
 export const DEFAULT_DESK_CONFIG = {
   drawerPosition: "right",
   drawerModuleWidthCm: 40,
@@ -60,6 +62,7 @@ export function calculateDeskStructure({
 
   const minimumModuleWidthCm = thicknessCm * 2 + (drawerDimensions?.totalClearanceCm ?? 0) + 12;
   const errors = [];
+  if (drawerCount < DESK_DRAWER_LIMITS.min || drawerCount > DESK_DRAWER_LIMITS.max) errors.push(`El Escritorio admite entre ${DESK_DRAWER_LIMITS.min} y ${DESK_DRAWER_LIMITS.max} cajones.`);
   if (widthCm <= 0 || heightCm <= thicknessCm || depthCm <= thicknessCm * 2 || thicknessCm <= 0) errors.push("Las dimensiones estructurales deben ser mayores que cero.");
   if (drawerCount && moduleWidthCm < minimumModuleWidthCm) errors.push(`El módulo de cajones debe medir al menos ${minimumModuleWidthCm.toFixed(1)} cm para alojar caja y correderas.`);
   if (drawerCount && moduleWidthCm > widthCm - thicknessCm - 60) errors.push("El módulo de cajones es demasiado ancho para conservar una zona cómoda para la silla.");
@@ -68,7 +71,7 @@ export function calculateDeskStructure({
   if (legroomHeightCm < 60) errors.push(`La altura libre para las piernas es ${Math.max(0, legroomHeightCm).toFixed(1)} cm; se requieren al menos 60 cm.`);
   if (drawerCount && drawerFrontHeightCm <= 0) errors.push("No existe altura suficiente para distribuir los frentes de los cajones.");
   if (drawerCount > 1 && frontGapCm <= 0) errors.push("La separación entre frentes debe ser mayor que cero para evitar contacto o superposición.");
-  if (drawerCount && drawerSideHeightCm < 8) errors.push("Los cajones quedan demasiado bajos para construirse sin colisiones.");
+  if (drawerCount && drawerFrontHeightCm < MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM) errors.push(`No existe suficiente altura disponible para instalar ${drawerCount} cajones con esta configuración.`);
   if (drawerCount && !drawerDimensions?.hasEnoughDepth) errors.push(`La corredera de ${drawerDepthCm.toFixed(1)} cm es demasiado larga para el fondo disponible.`);
   if (drawerCount && lowestDrawerEdgeCm < moduleBraceTopCm - 1e-9) errors.push("El cajón inferior choca con el refuerzo estructural del módulo.");
   if (drawerCount && drawerRearEdgeCm < rearCrossbarFrontCm - 1e-9) errors.push("Los cajones chocan con el travesaño trasero.");

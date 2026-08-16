@@ -1,3 +1,5 @@
+import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM, NIGHTSTAND_DRAWER_LIMITS } from "./drawerLimits.js";
+
 export const DEFAULT_NIGHTSTAND_STRUCTURE = {
   rearEnabled: true, rearHeightCm: 8, frontEnabled: true,
   frontHeightCm: 6, frontSafetyGapCm: 0.5,
@@ -81,7 +83,8 @@ export function calculateNightstandStructure({ widthCm = 0, heightCm, depthCm, t
   });
   const lowestDrawerBottomCm = -heightCm / 2 + requiredBottomSpaceCm + 0.6;
   const frontCrossbarTopCm = -heightCm / 2 + frontHeightCm;
-  const hasVerticalSpace = (!config.frontEnabled || !drawers || drawerBoxHeightCm >= 8) && drawerGeometry.valid;
+  const hasValidDrawerCount = drawers >= NIGHTSTAND_DRAWER_LIMITS.min && drawers <= NIGHTSTAND_DRAWER_LIMITS.max;
+  const hasVerticalSpace = drawerBoxHeightCm >= MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM && drawerGeometry.valid;
   const hasDepthSpace = !config.frontEnabled || frontThicknessCm <= depthCm;
   return {
     config, rearHeightCm, frontHeightCm, frontThicknessCm, safetyGapCm, requiredBottomSpaceCm,
@@ -89,7 +92,9 @@ export function calculateNightstandStructure({ widthCm = 0, heightCm, depthCm, t
     drawerFrontWidthCm: positive(widthCm, 0), topDepthCm: positive(depthCm, 0) + positive(thicknessCm, 0),
     frontGapCm, drawerGeometry, lowestDrawerBottomCm, frontCrossbarTopCm,
     verticalClearanceCm: lowestDrawerBottomCm - frontCrossbarTopCm,
-    valid: hasVerticalSpace && hasDepthSpace,
-    error: hasVerticalSpace && hasDepthSpace ? "" : drawerGeometry.valid ? NIGHTSTAND_CROSSBAR_ERROR : NIGHTSTAND_DRAWER_SPACE_ERROR,
+    valid: hasValidDrawerCount && hasVerticalSpace && hasDepthSpace,
+    error: !hasValidDrawerCount
+      ? `La Mesa de Noche admite entre ${NIGHTSTAND_DRAWER_LIMITS.min} y ${NIGHTSTAND_DRAWER_LIMITS.max} cajones.`
+      : hasVerticalSpace && hasDepthSpace ? "" : drawerGeometry.valid ? NIGHTSTAND_CROSSBAR_ERROR : NIGHTSTAND_DRAWER_SPACE_ERROR,
   };
 }

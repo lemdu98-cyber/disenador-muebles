@@ -1,6 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import { Bounds, Grid, OrbitControls } from "@react-three/drei";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Wardrobe from "./components/Wardrobe";
 import Desk from "./components/Desk";
 import TvStand from "./components/TvStand";
@@ -17,6 +17,8 @@ import NightstandStructureSettings from "./components/NightstandStructureSetting
 import DeskSettings from "./components/DeskSettings";
 import HardwareSummary from "./components/HardwareSummary";
 import TvStandSettings from "./components/TvStandSettings";
+import OptimizerSettings from "./components/OptimizerSettings";
+import ManufacturingStatus from "./components/ManufacturingStatus";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -24,6 +26,10 @@ import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE } from "./ut
 import { calculateDeskStructure, DEFAULT_DESK_CONFIG } from "./utils/deskStructure";
 import { getHardwareItems } from "./utils/hardware";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "./utils/tvStandStructure";
+import { DEFAULT_OPTIMIZER_SETTINGS } from "./utils/optimizer/optimizerConfig";
+import { getCutPieces } from "./utils/cutPieces";
+import { validateFurniturePieces } from "./utils/manufacturingValidation";
+import { calculateDeskDrawerCapacity, calculateNightstandDrawerCapacity, DESK_DRAWER_LIMITS, NIGHTSTAND_DRAWER_LIMITS } from "./utils/drawerLimits";
 import "./App.css";
 
 const MODELS = {
@@ -50,6 +56,8 @@ export default function App() {
   const [nightstandStructureConfig, setNightstandStructureConfig] = useState(DEFAULT_NIGHTSTAND_STRUCTURE);
   const [deskConfig, setDeskConfig] = useState(DEFAULT_DESK_CONFIG);
   const [tvStandConfig, setTvStandConfig] = useState(DEFAULT_TV_STAND_CONFIG);
+  const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
+  const [drawerAdjustmentMessage, setDrawerAdjustmentMessage] = useState("");
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
@@ -59,6 +67,22 @@ export default function App() {
   const depth = depthCm / 100;
   const melamineThickness = materialConfigs.melamine.thicknessMm / 1000;
   const hardboardThickness = materialConfigs.hardboard.thicknessMm / 1000;
+  const drawerCapacity = useMemo(() => isDesk
+    ? calculateDeskDrawerCapacity({ heightCm, thicknessCm: melamineThickness * 100, deskConfig })
+    : isNightstand
+      ? calculateNightstandDrawerCapacity({ heightCm, thicknessCm: melamineThickness * 100, drawerFrontConfig, structureConfig: nightstandStructureConfig })
+      : null,
+  [isDesk, isNightstand, heightCm, melamineThickness, deskConfig, drawerFrontConfig, nightstandStructureConfig]);
+  const drawerLimits = isDesk ? DESK_DRAWER_LIMITS : isNightstand ? NIGHTSTAND_DRAWER_LIMITS : null;
+  useEffect(() => {
+    if (!drawerLimits || !drawerCapacity || drawers <= drawerCapacity.maxAllowed || drawerCapacity.maxAllowed < drawerLimits.min) return;
+    const previous = drawers;
+    const timer = window.setTimeout(() => {
+      setDrawers(drawerCapacity.maxAllowed);
+      setDrawerAdjustmentMessage(`La nueva altura permite un máximo de ${drawerCapacity.maxAllowed} cajones. La cantidad fue ajustada de ${previous} a ${drawerCapacity.maxAllowed}.`);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [drawerCapacity, drawerLimits, drawers]);
   const drawerDimensions = useMemo(() => calculateDrawerSlideDimensions({
     furnitureType, widthCm, depthCm, drawers, thicknessCm: melamineThickness * 100, drawerSlideConfig, deskConfig,
   }), [furnitureType, widthCm, depthCm, drawers, melamineThickness, drawerSlideConfig, deskConfig]);
@@ -77,8 +101,12 @@ export default function App() {
     widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, tvStandConfig,
   }), [widthCm, heightCm, depthCm, melamineThickness, tvStandConfig]);
   const tvStandValidationError = isTvStand ? tvStandStructure.error : "";
-  const designValidationError = drawerValidationError || structureValidationError || deskValidationError || tvStandValidationError;
-  const design = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, nightstandStructureConfig, deskConfig, tvStandConfig, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, designValidationError };
+  const geometryValidationError = drawerValidationError || structureValidationError || deskValidationError || tvStandValidationError;
+  const designInputs = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, nightstandStructureConfig, deskConfig, tvStandConfig };
+  const generatedPieces = getCutPieces({ ...designInputs, materialConfigs });
+  const pieceValidation = validateFurniturePieces(generatedPieces, materialConfigs.melamine, optimizerSettings);
+  const designValidationError = geometryValidationError || pieceValidation.error;
+  const design = { ...designInputs, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, pieceValidation, optimizerSettings, designValidationError };
   const hardwareItems = getHardwareItems(design);
   const updateType = (type) => {
     const [newWidth, newHeight, newDepth] = MODELS[type].dimensions;
@@ -92,6 +120,14 @@ export default function App() {
     if (type === "desk") setDrawerSlideConfig((current) => ({ ...current, type: "telescopic", lengthMm: 350 }));
   };
   const updateDimension = (setter, minimum = 1) => (event) => setter(Math.max(minimum, Number(event.target.value) || minimum));
+  const updateDrawerCount = (event) => {
+    const requested = Math.floor(Number(event.target.value));
+    if (!drawerLimits || !Number.isFinite(requested)) return;
+    const maximum = Math.max(drawerLimits.min, Math.min(drawerLimits.max, drawerCapacity?.maxAllowed ?? drawerLimits.max));
+    const adjusted = Math.max(drawerLimits.min, Math.min(maximum, requested));
+    setDrawers(adjusted);
+    setDrawerAdjustmentMessage(requested === adjusted ? "" : `La cantidad permitida con la configuración actual es de ${drawerLimits.min} a ${maximum} cajones.`);
+  };
 
   return <main className="app-shell">
     <aside className="control-panel">
@@ -110,7 +146,9 @@ export default function App() {
       <section className="configuration">
         <h2>Configuración</h2>
         {isCatHouse || isTvStand ? <p className="configuration-note">Estructura abierta sin puertas ni cajones.</p> : isDesk || isNightstand ? <>
-          <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label>
+          <label>Cajones<input type="number" min={drawerLimits.min} max={Math.max(drawerLimits.min, drawerCapacity?.maxAllowed ?? drawerLimits.max)} value={drawers} onChange={updateDrawerCount} /></label>
+          {drawerAdjustmentMessage && <p className="configuration-warning">{drawerAdjustmentMessage}</p>}
+          {drawerCapacity && drawerCapacity.maxAllowed >= drawerLimits.min && <p className="configuration-note">Máximo permitido con la altura actual: {drawerCapacity.maxAllowed} cajones.</p>}
         </> : <>
           <label>Puertas<input type="number" min="1" max="6" value={doors} onChange={updateDimension(setDoors)} /></label>
           <label>Cajones<input type="number" min="0" max="6" value={drawers} onChange={updateDimension(setDrawers, 0)} /></label>
@@ -126,12 +164,14 @@ export default function App() {
       </>}
       {activeModule === "design" && <>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
+        <OptimizerSettings settings={optimizerSettings} onChange={setOptimizerSettings} />
+        <ManufacturingStatus error={designValidationError} warnings={drawerAdjustmentMessage ? [drawerAdjustmentMessage] : []} />
         <HardwareSummary items={hardwareItems} />
         <CutList {...design} materialConfigs={materialConfigs} />
-        <CutOptimizer {...design} materialConfigs={materialConfigs} />
+        <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
       </>}
     </aside>
-    {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} /> : <section className="viewport">
+    {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} optimizerSettings={optimizerSettings} setOptimizerSettings={setOptimizerSettings} /> : <section className="viewport">
       <Canvas camera={{ position: [3.8, 2.8, 4.2], fov: 45 }} shadows>
         <color attach="background" args={["#f5f1eb"]} />
         <ambientLight intensity={1.4} />

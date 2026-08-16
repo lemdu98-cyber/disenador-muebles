@@ -6,7 +6,8 @@ import { MATERIAL_ORDER } from "../utils/materialConfig";
 
 export default function CutOptimizer(props) {
   const pieces = useMemo(() => getCutPieces(props), [props]);
-  const results = useMemo(() => optimizeAllMaterials(pieces, props.materialConfigs), [pieces, props.materialConfigs]);
+  const options = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { optimizerSettings: props.optimizerSettings }])), [props.optimizerSettings]);
+  const results = useMemo(() => optimizeAllMaterials(props.designValidationError ? [] : pieces, props.materialConfigs, options), [pieces, props.materialConfigs, props.designValidationError, options]);
   if (props.designValidationError) return null;
 
   return <>{MATERIAL_ORDER.map((id) => {

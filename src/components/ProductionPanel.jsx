@@ -12,7 +12,7 @@ import { optimizeAllMaterials } from "../utils/materialOptimizer";
 import { DEFAULT_SCRAP_SETTINGS, classifyFreeRects, makeBankEntries } from "../utils/scrapManager";
 import { calculateMaterialCosts } from "../utils/materialCostCalculator";
 import { MATERIAL_IDS, MATERIAL_ORDER } from "../utils/materialConfig";
-import { DEFAULT_OPTIMIZER_SETTINGS } from "../utils/optimizer/optimizerConfig";
+import { validateFurniturePieces } from "../utils/manufacturingValidation";
 import { createFixedProduction, getAddedPieces, optimizeProductionAdditions } from "../utils/production/ProductionManager";
 import { loadProduction, saveProduction } from "../utils/production/BoardSerializer";
 import { BOARD_STATES, setBoardsStatus } from "../utils/production/BoardStateManager";
@@ -21,10 +21,9 @@ import { getOrderHardware } from "../utils/hardware";
 
 const BANK_KEY = "mueblecad-scrap-bank";
 
-export default function ProductionPanel({ design, materialConfigs, setMaterialConfigs }) {
+export default function ProductionPanel({ design, materialConfigs, setMaterialConfigs, optimizerSettings, setOptimizerSettings }) {
   const [orderItems, setOrderItems] = useState(() => createOrderItems(design));
   const [scrapSettings, setScrapSettings] = useState(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { ...DEFAULT_SCRAP_SETTINGS }])));
-  const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
   const [manualLayouts, setManualLayouts] = useState({});
   const [fixedProduction, setFixedProduction] = useState(loadProduction);
   const [scrapBank, setScrapBank] = useState(() => { try { return JSON.parse(localStorage.getItem(BANK_KEY)) || []; } catch { return []; } });
@@ -34,6 +33,8 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const setQuantity = (furnitureType, quantity) => setOrderItems((items) => items.map((item) => item.furnitureType === furnitureType ? { ...item, quantity: Math.max(0, Math.min(10, quantity)) } : item));
   const effectiveOrderItems = useMemo(() => orderItems.map((item) => item.furnitureType === design.furnitureType ? { ...item, params: { ...design } } : item), [orderItems, design]);
   const pieces = useMemo(() => getOrderPieces(effectiveOrderItems, materialConfigs), [effectiveOrderItems, materialConfigs]);
+  const pieceValidation = useMemo(() => validateFurniturePieces(pieces, materialConfigs.melamine, optimizerSettings), [pieces, materialConfigs.melamine, optimizerSettings]);
+  const productionValidationError = design.designValidationError || pieceValidation.error;
   const hardwareItems = useMemo(() => getOrderHardware(effectiveOrderItems), [effectiveOrderItems]);
   const optimizationKey = useMemo(() => JSON.stringify({
     pieces: pieces.map(({ id, length, width, grainDirection, material }) => ({ id, length, width, grainDirection, materialId: material.id })),
@@ -41,7 +42,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
     optimizerSettings,
     scrapBank: scrapBank.map(({ id, lengthCm, widthCm, status, materialId }) => ({ id, lengthCm, widthCm, status, materialId })),
   }), [pieces, materialConfigs, optimizerSettings, scrapBank]);
-  const optimized = useMemo(() => optimizeAllMaterials(pieces, materialConfigs, Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { scrapBank, optimizerSettings }]))), [pieces, materialConfigs, scrapBank, optimizerSettings]);
+  const optimized = useMemo(() => optimizeAllMaterials(productionValidationError ? [] : pieces, materialConfigs, Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { scrapBank, optimizerSettings }]))), [pieces, productionValidationError, materialConfigs, scrapBank, optimizerSettings]);
   const liveOptimized = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
     manualLayouts[id]?.optimizationKey === optimizationKey ? { ...optimized[id], boards: manualLayouts[id].boards } : optimized[id],
@@ -126,11 +127,11 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   });
 
   return <section className="production-page">
-    <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{design.designValidationError && <p className="validation-error">{design.designValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(design.designValidationError)}>Finalizar y guardar retazos</button></header>
+    <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{productionValidationError && <p className="validation-error">{productionValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(productionValidationError)}>Finalizar y guardar retazos</button></header>
     <section className="production-lock-bar">
       <div className="production-lock-actions">
-        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(design.designValidationError)}>Fijar producción</button>
-        <button type="button" className="primary-action" onClick={optimizeAdditions} disabled={!fixedProduction || !addedPieces.length}>Optimizar añadidos</button>
+        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(productionValidationError)}>Fijar producción</button>
+        <button type="button" className="primary-action" onClick={optimizeAdditions} disabled={!fixedProduction || !addedPieces.length || Boolean(productionValidationError)}>Optimizar añadidos</button>
         <button type="button" onClick={unlockProduction} disabled={!fixedProduction || hasCutBoards}>Desbloquear producción</button>
         <button type="button" onClick={confirmBoards} disabled={!fixedProduction}>Confirmar placas</button>
         <button type="button" onClick={markBoardsCut} disabled={!fixedProduction}>Marcar como cortadas</button>
