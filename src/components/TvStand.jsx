@@ -6,6 +6,7 @@ const DIVIDER = "#99643c";
 const SHELF = "#a87349";
 const BRACE = "#704421";
 const HARDBOARD = "#b98b5d";
+const SUPPORT = "#85512c";
 
 function Piece({ position, dimensions, color = BODY, opacity = 1 }) {
   return <mesh position={position} castShadow receiveShadow>
@@ -24,6 +25,9 @@ export default function TvStand({ width, height, depth, thickness, backThickness
   const shelfY = structure.shelfCenterYCm / 100;
   const upperHeight = structure.upperRearHeightCm / 100;
   const lowerHeight = structure.lowerRearHeightCm / 100;
+  const supportHeight = structure.supportHeightCm / 100;
+  const supportDepth = structure.supportDepthCm / 100;
+  const supportX = structure.supportCenterXCm / 100;
   const spans = structure.config.dividerEnabled ? [-1, 1] : [0];
   const spanCenterX = (side) => side === 0 ? 0 : side * (thickness / 2 + shelfSpan / 2);
   const inspectionOpacity = structure.config.showStructure ? .38 : 1;
@@ -35,6 +39,7 @@ export default function TvStand({ width, height, depth, thickness, backThickness
     <Piece position={[0, -height / 2 + thickness / 2, 0]} dimensions={[innerWidth, thickness, depth]} />
     {structure.config.dividerEnabled && <Piece position={[0, 0, thickness / 2]} dimensions={[thickness, dividerHeight, shelfDepth]} color={DIVIDER} />}
     {spans.map((side) => <Piece key={`shelf-${side}`} position={[spanCenterX(side), shelfY, thickness / 2]} dimensions={[shelfSpan, thickness, shelfDepth]} color={SHELF} />)}
+    {structure.config.dividerEnabled && [-1, 1].map((side) => <Piece key={`support-${side}`} position={[side * supportX, -height / 2 + thickness + supportHeight / 2, thickness / 2]} dimensions={[thickness, supportHeight, supportDepth]} color={SUPPORT} />)}
     {structure.config.upperRearEnabled && <Piece position={[0, height / 2 - thickness - upperHeight / 2, -depth / 2 + thickness / 2]} dimensions={[innerWidth, upperHeight, thickness]} color={BRACE} />}
     {structure.config.lowerRearEnabled && <Piece position={[0, -height / 2 + thickness + lowerHeight / 2, -depth / 2 + thickness / 2]} dimensions={[innerWidth, lowerHeight, thickness]} color={BRACE} />}
     {!structure.config.showStructure && <Piece position={[0, 0, -depth / 2 - backThickness / 2]} dimensions={[width, height, backThickness]} color={HARDBOARD} />}

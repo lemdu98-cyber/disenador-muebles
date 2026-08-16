@@ -147,6 +147,8 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
     if (structure.config.dividerEnabled) {
       addPieces(pieces, "Repisa izquierda", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
       addPieces(pieces, "Repisa derecha", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
+      addPieces(pieces, "Soporte vertical izquierdo", 1, structure.supportHeightCm, structure.supportDepthCm, melamine);
+      addPieces(pieces, "Soporte vertical derecho", 1, structure.supportHeightCm, structure.supportDepthCm, melamine);
     } else addPieces(pieces, "Repisa interior", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
     if (structure.config.upperRearEnabled) addPieces(pieces, "Travesaño trasero superior", 1, structure.innerWidthCm, structure.upperRearHeightCm, melamine);
     if (structure.config.lowerRearEnabled) addPieces(pieces, "Travesaño trasero inferior", 1, structure.innerWidthCm, structure.lowerRearHeightCm, melamine);

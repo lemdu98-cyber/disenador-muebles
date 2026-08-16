@@ -13,6 +13,10 @@ const nonNegative = (value, fallback = 0) => {
   return Number.isFinite(number) ? Math.max(0, number) : fallback;
 };
 
+// Target distribution requested for each lower half: about 55 cm outside and
+// 32 cm beside the central divider at the default 180 cm overall width.
+const LOWER_OUTER_SHARE = 55 / (55 + 32);
+
 export function calculateTvStandStructure({ widthCm, heightCm, depthCm, thicknessCm, tvStandConfig }) {
   const config = { ...DEFAULT_TV_STAND_CONFIG, ...tvStandConfig };
   const sideHeightCm = heightCm - thicknessCm;
@@ -28,6 +32,12 @@ export function calculateTvStandStructure({ widthCm, heightCm, depthCm, thicknes
   const upperClearHeightCm = heightCm - thicknessCm - shelfHeightCm;
   const upperRearBottomCm = heightCm - thicknessCm - upperRearHeightCm;
   const lowerRearTopCm = thicknessCm + lowerRearHeightCm;
+  const supportHeightCm = lowerClearHeightCm;
+  const supportDepthCm = shelfDepthCm;
+  const lowerClearWidthCm = shelfSpanCm - thicknessCm;
+  const outerLowerCompartmentWidthCm = lowerClearWidthCm * LOWER_OUTER_SHARE;
+  const innerLowerCompartmentWidthCm = lowerClearWidthCm - outerLowerCompartmentWidthCm;
+  const supportCenterXCm = thicknessCm + innerLowerCompartmentWidthCm;
   const errors = [];
   const warnings = [];
 
@@ -40,6 +50,8 @@ export function calculateTvStandStructure({ widthCm, heightCm, depthCm, thicknes
   if (config.upperRearEnabled && (upperRearHeightCm <= 0 || upperRearHeightCm >= dividerHeightCm)) errors.push("La altura del travesaño trasero superior no es válida.");
   if (config.lowerRearEnabled && (lowerRearHeightCm <= 0 || lowerRearHeightCm >= dividerHeightCm)) errors.push("La altura del travesaño trasero inferior no es válida.");
   if (config.upperRearEnabled && config.lowerRearEnabled && lowerRearTopCm >= upperRearBottomCm) errors.push("Los travesaños traseros superior e inferior se superponen.");
+  if (config.dividerEnabled && (outerLowerCompartmentWidthCm < 12 || innerLowerCompartmentWidthCm < 12)) errors.push("Los soportes verticales dejan compartimentos inferiores demasiado angostos.");
+  if (config.dividerEnabled && (supportCenterXCm + thicknessCm / 2 >= innerWidthCm / 2 || supportCenterXCm - thicknessCm / 2 <= thicknessCm / 2)) errors.push("Los soportes verticales chocan con los laterales o con el divisor central.");
   if (!config.dividerEnabled && widthCm > 120) warnings.push("La luz libre de la tapa es elevada. Se recomienda utilizar el divisor central para reducir la flexión de la melamina.");
   if (config.dividerEnabled && shelfSpanCm > 100) warnings.push("La luz de las repisas supera 100 cm; considere reducir el ancho total o agregar más apoyos.");
 
@@ -56,6 +68,11 @@ export function calculateTvStandStructure({ widthCm, heightCm, depthCm, thicknes
     upperClearHeightCm,
     upperRearHeightCm,
     lowerRearHeightCm,
+    supportHeightCm,
+    supportDepthCm,
+    supportCenterXCm,
+    outerLowerCompartmentWidthCm,
+    innerLowerCompartmentWidthCm,
     valid: errors.length === 0,
     errors,
     warnings,

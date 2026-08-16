@@ -17,6 +17,7 @@ export default function TvStandSettings({ config, onChange, structure }) {
       <div><span>Luz horizontal por compartimento</span><b>{cm(structure.shelfSpanCm)} cm</b></div>
       <div><span>Espacio inferior útil</span><b>{cm(structure.lowerClearHeightCm)} cm</b></div>
       <div><span>Espacio superior útil</span><b>{cm(structure.upperClearHeightCm)} cm</b></div>
+      {config.dividerEnabled && <><div><span>Compartimento inferior exterior</span><b>{cm(structure.outerLowerCompartmentWidthCm)} cm</b></div><div><span>Compartimento inferior interior</span><b>{cm(structure.innerLowerCompartmentWidthCm)} cm</b></div></>}
     </div>
     {structure.warning && <p className="optimizer-warning">Advertencia: {structure.warning}</p>}
     {!structure.valid && <p className="validation-error">{structure.error}</p>}
