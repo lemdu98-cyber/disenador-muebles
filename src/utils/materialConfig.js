@@ -18,10 +18,10 @@ export const DEFAULT_MATERIAL_CONFIG = {
     id: MATERIAL_IDS.HARDBOARD,
     label: "Cartón prensado",
     boardLabel: "Placa Cartón",
-    widthCm: 185,
-    lengthCm: 275,
+    widthCm: 172,
+    lengthCm: 244,
     thicknessMm: 3,
-    price: 85,
+    price: 59,
     color: "#b98b5d",
   },
 };

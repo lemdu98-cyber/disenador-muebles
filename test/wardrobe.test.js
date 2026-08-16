@@ -4,7 +4,7 @@ import { getCutPieces } from "../src/utils/cutPieces.js";
 import { createMaterialConfig } from "../src/utils/materialConfig.js";
 import { validateAllFurniturePieces } from "../src/utils/manufacturingValidation.js";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
-import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
+import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, SHOE_BOTTOM_SHELF_CLEARANCE_CM } from "../src/utils/wardrobeStructure.js";
 
 const design = { furnitureType: "wardrobe", widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, wardrobeConfig: DEFAULT_WARDROBE_CONFIG };
 const structureFor = (overrides = {}) => {
@@ -21,6 +21,8 @@ test("default wardrobe calculates three equal useful bodies", () => {
   assert.equal(structure.panelCentersXCm.length, 4);
   assert.equal(structure.drawerLayouts.length, 6);
   assert.equal(structure.shoeShelfYCentersCm.length, 3);
+  assert.equal(structure.shoeBottomShelfYCm - .75 - structure.lowerStructureTopCm, SHOE_BOTTOM_SHELF_CLEARANCE_CM);
+  assert.ok(structure.shoeShelfYCentersCm[0] > structure.shoeBottomShelfYCm + .75);
 });
 
 test("cut list contains one top, six crossbars, modular backs and explicitly named drawers", () => {
@@ -37,8 +39,21 @@ test("cut list contains one top, six crossbars, modular backs and explicitly nam
   assert.equal(countMatching(/^Frente Cajón/), 6);
   assert.equal(countMatching(/^Base cartón prensado Cajón/), 6);
   assert.equal(countMatching(/^Repisa zapatos/), 3);
+  assert.equal(countMatching(/^Repisa inferior zapatero Cuerpo 2$/), 1);
   assert.equal(countMatching(/^Repisa intermedia [12] Cuerpo 1/), 2);
   assert.equal(validateAllFurniturePieces(pieces, materialConfigs).valid, true);
+});
+
+test("official hardboard defaults are centralized and remain independent from melamine", () => {
+  const materials = createMaterialConfig();
+  assert.deepEqual(
+    { widthCm: materials.hardboard.widthCm, lengthCm: materials.hardboard.lengthCm, thicknessMm: materials.hardboard.thicknessMm, price: materials.hardboard.price },
+    { widthCm: 172, lengthCm: 244, thicknessMm: 3, price: 59 },
+  );
+  assert.deepEqual(
+    { widthCm: materials.melamine.widthCm, lengthCm: materials.melamine.lengthCm, thicknessMm: materials.melamine.thicknessMm, price: materials.melamine.price },
+    { widthCm: 185, lengthCm: 275, thicknessMm: 15, price: 605 },
+  );
 });
 
 test("drawers and shoe shelves start above crossbars and intermediate shelves split three equal clearances", () => {

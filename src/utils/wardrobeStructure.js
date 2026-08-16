@@ -2,6 +2,7 @@ import { calculateDrawerOpenOffsetCm } from "./drawerVisualization.js";
 import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "./drawerLimits.js";
 
 export const WARDROBE_LIMITS = { shoeShelves: { min: 2, default: 3, max: 5 }, fixedDrawersPerBody: 3 };
+export const SHOE_BOTTOM_SHELF_CLEARANCE_CM = 1;
 export const DEFAULT_WARDROBE_CONFIG = {
   upperCompartmentHeightCm: 38,
   drawerRegionHeightCm: 58,
@@ -57,8 +58,12 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
     centerZCm: depthCm / 2 - drawerDepthCm / 2 + drawerOpenOffsetCm,
   })));
   const shoeRegionHeightCm = num(config.shoeRegionHeightCm, 68);
-  const shoeSpacingCm = shoeRegionHeightCm / (shoeShelfCount + 1);
-  const shoeShelfYCentersCm = Array.from({ length: shoeShelfCount }, (_, index) => lowerStructureTopCm + shoeSpacingCm * (index + 1));
+  const shoeBottomShelfClearanceCm = SHOE_BOTTOM_SHELF_CLEARANCE_CM;
+  const shoeBottomShelfYCm = lowerStructureTopCm + shoeBottomShelfClearanceCm + thicknessCm / 2;
+  const shoeBottomShelfTopCm = shoeBottomShelfYCm + thicknessCm / 2;
+  const shoeUsableHeightCm = shoeRegionHeightCm - shoeBottomShelfClearanceCm - thicknessCm;
+  const shoeSpacingCm = shoeUsableHeightCm / (shoeShelfCount + 1);
+  const shoeShelfYCentersCm = Array.from({ length: shoeShelfCount }, (_, index) => shoeBottomShelfTopCm + shoeSpacingCm * (index + 1));
   const rodYCm = upperShelfYCm - thicknessCm / 2 - num(config.rodDropCm, 9);
   const body2HangingBottomCm = lowerStructureTopCm + shoeRegionHeightCm;
   const body3HangingBottomCm = drawerShelfYCm + thicknessCm / 2;
@@ -85,7 +90,8 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
     panelCentersXCm, bodyCentersXCm, backLayouts, upperCompartmentHeightCm, upperShelfYCm,
     lowerCrossbarHeightCm, lowerStructureTopCm, drawerRegionHeightCm, drawerFrontHeightCm, drawerSideHeightCm, drawerShelfYCm,
     intermediateFreeHeightCm, intermediateGapCm, intermediateShelfYCentersCm,
-    drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
+    drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeBottomShelfClearanceCm, shoeBottomShelfYCm,
+    shoeUsableHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
     rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm,
     doorGapCm, edgeGapCm, drawerBoxWidthCm,
     drawerBackWidthCm: Math.max(0, drawerBoxWidthCm - thicknessCm * 2), bottomThicknessCm,

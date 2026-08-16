@@ -190,6 +190,7 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
     addPieces(pieces, "Repisa intermedia 1 Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     addPieces(pieces, "Repisa intermedia 2 Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     addPieces(pieces, "Repisa sobre cajones Cuerpo 3", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Repisa inferior zapatero Cuerpo 2", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     for (let shelf = 1; shelf <= shelves; shelf += 1) addPieces(pieces, `Repisa zapatos ${shelf} Cuerpo 2`, 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
     const front = calculateDrawerFrontDimensions({ boxWidthCm: s.drawerBoxWidthCm, boxFrontHeightCm: s.drawerFrontHeightCm, drawerFrontConfig });
     const bottom = calculateDrawerBottomDimensions({ externalWidth: s.drawerBoxWidthCm, externalDepth: s.drawerDepthCm, panelThickness: thicknessCm, bottomThickness: hardboard.thicknessMm / 10 });
