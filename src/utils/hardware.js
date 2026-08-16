@@ -1,5 +1,5 @@
 export function getHardwareItems({ furnitureType, drawers = 0, drawerSlideConfig }) {
-  if (!drawers || !["desk", "nightstand", "tvStand", "wardrobe"].includes(furnitureType)) return [];
+  if (!drawers || !["desk", "nightstand", "wardrobe"].includes(furnitureType)) return [];
   const lengthCm = Number(drawerSlideConfig?.lengthMm || 350) / 10;
   return [{
     id: "telescopic-slides",

@@ -1,8 +1,40 @@
-import Drawer from "./Drawer";
-import { calculateBackPanelDimensions } from "../utils/backPanel";
-const WOOD = "#8b5a2b"; const TOP = "#b07d4f"; const FRONT = "#d8c3a5"; const HARDBOARD = "#b98b5d";
-export default function TvStand({ width, height, depth, doors, drawers, shelves, thickness = .015, backThickness = .003, drawerDimensions, drawerFrontConfig }) {
-  const storageHeight = height * .48; const openHeight = height - storageHeight - thickness * 2; const drawerAreaWidth = drawers ? Math.min(width * .38, .72) : 0; const remainingWidth = width - drawerAreaWidth - thickness * 2; const doorWidth = doors ? remainingWidth / doors : 0;
-  const backPanel = calculateBackPanelDimensions({ externalWidth: width, externalHeight: height, panelThickness: thickness, backPanelThickness: backThickness, hasTop: true, hasBottom: true, furnitureDepth: depth });
-  return <group><mesh position={[0, height / 2 - thickness / 2, 0]}><boxGeometry args={[width, thickness, depth]} /><meshStandardMaterial color={TOP} /></mesh><mesh position={[0, -height / 2 + thickness / 2, 0]}><boxGeometry args={[width, thickness, depth]} /><meshStandardMaterial color={WOOD} /></mesh>{[-1, 1].map((side) => <mesh key={side} position={[side * (width / 2 - thickness / 2), 0, 0]}><boxGeometry args={[thickness, height - thickness * 2, depth]} /><meshStandardMaterial color={WOOD} /></mesh>)}<mesh position={[0, 0, backPanel.centerZ]}><boxGeometry args={[backPanel.width, backPanel.height, backPanel.thickness]} /><meshStandardMaterial color={HARDBOARD} /></mesh><mesh position={[0, -height / 2 + storageHeight + thickness, 0]}><boxGeometry args={[width - thickness * 2, thickness, depth - thickness]} /><meshStandardMaterial color={WOOD} /></mesh>{Array.from({ length: shelves }).map((_, index) => <mesh key={index} position={[0, -height / 2 + storageHeight + (openHeight * (index + 1)) / (shelves + 1), 0]}><boxGeometry args={[width - thickness * 2, thickness, depth - thickness]} /><meshStandardMaterial color={WOOD} /></mesh>)}{Array.from({ length: doors }).map((_, index) => { const offset = drawerAreaWidth && index >= Math.ceil(doors / 2) ? drawerAreaWidth : 0; return <mesh key={index} position={[-width / 2 + thickness + doorWidth / 2 + index * doorWidth + offset, -height / 2 + storageHeight / 2, depth / 2 + thickness / 2]}><boxGeometry args={[doorWidth - .012, storageHeight - thickness * 2, thickness]} /><meshStandardMaterial color={FRONT} /></mesh>; })}{drawerDimensions.hasEnoughDepth && Array.from({ length: drawers }).map((_, index) => <Drawer key={index} width={drawerDimensions.externalWidthCm / 100} height={storageHeight / drawers - .012} depth={drawerDimensions.sideLengthCm / 100} thickness={thickness} baseThickness={backThickness} drawerFrontConfig={drawerFrontConfig} position={[-width / 2 + drawerAreaWidth / 2 + thickness, -height / 2 + storageHeight - (storageHeight * (index + .5)) / drawers, 0]} />)}</group>;
+import { Edges } from "@react-three/drei";
+
+const BODY = "#8b5a2b";
+const TOP = "#b07d4f";
+const DIVIDER = "#99643c";
+const SHELF = "#a87349";
+const BRACE = "#704421";
+
+function Piece({ position, dimensions, color = BODY, opacity = 1 }) {
+  return <mesh position={position} castShadow receiveShadow>
+    <boxGeometry args={dimensions} />
+    <meshStandardMaterial color={color} transparent={opacity < 1} opacity={opacity} />
+    <Edges color="#49382d" threshold={15} scale={1.001} />
+  </mesh>;
+}
+
+export default function TvStand({ width, height, depth, thickness, structure }) {
+  const sideHeight = structure.sideHeightCm / 100;
+  const innerWidth = structure.innerWidthCm / 100;
+  const dividerHeight = structure.dividerHeightCm / 100;
+  const shelfDepth = structure.shelfDepthCm / 100;
+  const shelfSpan = structure.shelfSpanCm / 100;
+  const shelfY = structure.shelfCenterYCm / 100;
+  const upperHeight = structure.upperRearHeightCm / 100;
+  const lowerHeight = structure.lowerRearHeightCm / 100;
+  const spans = structure.config.dividerEnabled ? [-1, 1] : [0];
+  const spanCenterX = (side) => side === 0 ? 0 : side * (thickness / 2 + shelfSpan / 2);
+  const inspectionOpacity = structure.config.showStructure ? .38 : 1;
+
+  return <group>
+    <Piece position={[0, height / 2 - thickness / 2, 0]} dimensions={[width, thickness, depth]} color={TOP} opacity={inspectionOpacity} />
+    <Piece position={[-width / 2 + thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, depth]} opacity={inspectionOpacity} />
+    <Piece position={[width / 2 - thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, depth]} opacity={inspectionOpacity} />
+    <Piece position={[0, -height / 2 + thickness / 2, 0]} dimensions={[innerWidth, thickness, depth]} />
+    {structure.config.dividerEnabled && <Piece position={[0, 0, thickness / 2]} dimensions={[thickness, dividerHeight, shelfDepth]} color={DIVIDER} />}
+    {spans.map((side) => <Piece key={`shelf-${side}`} position={[spanCenterX(side), shelfY, thickness / 2]} dimensions={[shelfSpan, thickness, shelfDepth]} color={SHELF} />)}
+    {structure.config.upperRearEnabled && spans.map((side) => <Piece key={`upper-${side}`} position={[spanCenterX(side), height / 2 - thickness - upperHeight / 2, -depth / 2 + thickness / 2]} dimensions={[shelfSpan, upperHeight, thickness]} color={BRACE} />)}
+    {structure.config.lowerRearEnabled && spans.map((side) => <Piece key={`lower-${side}`} position={[spanCenterX(side), -height / 2 + thickness + lowerHeight / 2, -depth / 2 + thickness / 2]} dimensions={[shelfSpan, lowerHeight, thickness]} color={BRACE} />)}
+  </group>;
 }
