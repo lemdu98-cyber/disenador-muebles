@@ -4,7 +4,7 @@ export default function HardwareSummary({ items }) {
     <h2>Herrajes</h2>
     {items.map((item) => <div className="cost-row" key={`${item.furnitureType || "design"}-${item.id}`}>
       <span>{item.name}</span>
-      <b>{item.pairs} pares / {item.units} unidades</b>
+      <b>{item.pairs ? `${item.pairs} pares / ` : ""}{item.units} unidades</b>
     </div>)}
   </section>;
 }

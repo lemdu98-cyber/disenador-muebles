@@ -6,6 +6,7 @@ import { calculateDrawerFrontDimensions } from "./drawerFront.js";
 import { calculateNightstandStructure } from "./nightstandStructure.js";
 import { calculateDeskStructure } from "./deskStructure.js";
 import { calculateTvStandStructure } from "./tvStandStructure.js";
+import { calculateWardrobeStructure } from "./wardrobeStructure.js";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
 const safe = (value) => Math.max(0, Number(value.toFixed(2)));
@@ -55,7 +56,7 @@ const addDrawerPieces = (pieces, quantity, boxWidth, boxFrontHeight, drawerDepth
 };
 
 /** Complete manufacturing list. Dimensions are centimetres and each piece owns its material. */
-export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig, deskConfig, tvStandConfig }) {
+export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig, deskConfig, tvStandConfig, wardrobeConfig }) {
   const pieces = [];
   const melamine = materialConfigs?.melamine || MATERIALS.MELAMINE;
   const hardboard = materialConfigs?.hardboard || MATERIALS.HARDBOARD;
@@ -63,7 +64,7 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
   const innerWidth = widthCm - thicknessCm * 2;
   const innerHeight = heightCm - thicknessCm * 2;
   const effectiveDrawers = furnitureType === "tvStand" ? 0 : drawers;
-  const drawerDimensions = calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers: effectiveDrawers, thicknessCm, drawerSlideConfig, deskConfig });
+  const drawerDimensions = calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers: effectiveDrawers, thicknessCm, drawerSlideConfig, deskConfig, wardrobeConfig });
   if (!drawerDimensions.hasEnoughDepth) return [];
   const nightstandStructure = calculateNightstandStructure({
     widthCm, heightCm, depthCm, thicknessCm, drawers, drawerFrontConfig, structureConfig: nightstandStructureConfig,
@@ -73,9 +74,11 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
     drawers, drawerDimensions, deskConfig,
   });
   const tvStandStructure = calculateTvStandStructure({ widthCm, heightCm, depthCm, thicknessCm, tvStandConfig });
+  const wardrobeStructure = calculateWardrobeStructure({ widthCm, heightCm, depthCm, thicknessCm, bottomThicknessCm: hardboard.thicknessMm / 10, drawers, shelves, drawerDimensions, wardrobeConfig });
   if (furnitureType === "nightstand" && !nightstandStructure.valid) return [];
   if (furnitureType === "desk" && !deskStructure.valid) return [];
   if (furnitureType === "tvStand" && !tvStandStructure.valid) return [];
+  if (furnitureType === "wardrobe" && !wardrobeStructure.valid) return [];
   const backPanel = calculateBackPanelDimensions({
     externalWidth: widthCm,
     externalHeight: heightCm,
@@ -197,12 +200,19 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, doors,
     }
     else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine);
   } else {
-    addPieces(pieces, "Laterales", 2, heightCm, depthCm, melamine);
-    addPieces(pieces, "Tapa y base", 2, widthCm, depthCm, melamine);
-    addBackPanel();
-    addPieces(pieces, "Puertas", doors, widthCm / doors, heightCm, melamine);
-    addPieces(pieces, "Repisas", shelves, widthCm - 10, depthCm, melamine);
-    if (drawers > 0) addDrawerPieces(pieces, drawers, drawerDimensions.externalWidthCm, Math.min(25, innerHeight / Math.max(drawers, 1) - 1), drawerDimensions.sideLengthCm, melamine, hardboard, thicknessCm, drawerFrontConfig);
+    const s = wardrobeStructure;
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
+    addPieces(pieces, "Lateral izquierdo", 1, s.sideHeightCm, depthCm, melamine);
+    addPieces(pieces, "Lateral derecho", 1, s.sideHeightCm, depthCm, melamine);
+    addPieces(pieces, "Base inferior", 1, s.innerWidthCm, depthCm, melamine);
+    addPieces(pieces, "Divisor vertical", 1, s.sideHeightCm, depthCm, melamine);
+    addPieces(pieces, "Repisa zona izquierda", shelves, s.leftOpeningWidthCm, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Cubierta sobre cajones", 1, s.leftOpeningWidthCm, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Repisa superior zona de colgado", 1, s.rightOpeningWidthCm, depthCm - thicknessCm, melamine);
+    addPieces(pieces, "Puerta izquierda", 1, s.doorHeightCm, s.doorWidthCm, melamine);
+    addPieces(pieces, "Puerta derecha", 1, s.doorHeightCm, s.doorWidthCm, melamine);
+    addPieces(pieces, "Fondo completo del ropero", 1, widthCm, heightCm, hardboard, { mounting: "external-rear", location: "Parte posterior exterior completa", installation: "Clavado sobre todos los bordes posteriores" });
+    if (drawers > 0) addDrawerPieces(pieces, drawers, s.drawerBoxWidthCm, s.drawerFrontHeightCm, s.drawerDepthCm, melamine, hardboard, thicknessCm, drawerFrontConfig);
   }
   return pieces;
 }

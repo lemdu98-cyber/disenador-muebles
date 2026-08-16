@@ -36,3 +36,14 @@ export function validateFurniturePieces(pieces, boardConfig, optimizerSettings =
   const error = first ? `La pieza ${first.piece.name} (${first.piece.length} × ${first.piece.width} cm) no cabe en la placa de melamina disponible (${finite(boardConfig?.lengthCm)} × ${finite(boardConfig?.widthCm)} cm). Área útil con márgenes: ${first.usableBoardLengthCm.toFixed(1)} × ${first.usableBoardWidthCm.toFixed(1)} cm. ${first.reason}` : "";
   return { valid: invalidPieces.length === 0, invalidPieces, warnings: [], error };
 }
+
+export function validateAllFurniturePieces(pieces, materialConfigs, optimizerSettings = DEFAULT_OPTIMIZER_SETTINGS) {
+  const invalidPieces = (pieces || []).map((piece) => {
+    const materialId = piece.material?.id || piece.materialId;
+    const board = materialConfigs?.[materialId];
+    return board ? { piece, materialId, board, ...validatePieceAgainstBoard(piece, board, optimizerSettings) } : null;
+  }).filter((result) => result && !result.valid);
+  const first = invalidPieces[0];
+  const error = first ? `La pieza ${first.piece.name} (${first.piece.length} × ${first.piece.width} cm) no cabe en la placa de ${first.board.label.toLowerCase()} disponible (${finite(first.board.lengthCm)} × ${finite(first.board.widthCm)} cm). No se dividirá automáticamente; cambie la placa o la construcción. ${first.reason}` : "";
+  return { valid: invalidPieces.length === 0, invalidPieces, warnings: [], error };
+}

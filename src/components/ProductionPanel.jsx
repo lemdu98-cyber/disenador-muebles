@@ -12,7 +12,7 @@ import { optimizeAllMaterials } from "../utils/materialOptimizer";
 import { DEFAULT_SCRAP_SETTINGS, classifyFreeRects, makeBankEntries } from "../utils/scrapManager";
 import { calculateMaterialCosts } from "../utils/materialCostCalculator";
 import { MATERIAL_IDS, MATERIAL_ORDER } from "../utils/materialConfig";
-import { validateFurniturePieces } from "../utils/manufacturingValidation";
+import { validateAllFurniturePieces } from "../utils/manufacturingValidation";
 import { createFixedProduction, getAddedPieces, optimizeProductionAdditions } from "../utils/production/ProductionManager";
 import { loadProduction, saveProduction } from "../utils/production/BoardSerializer";
 import { BOARD_STATES, setBoardsStatus } from "../utils/production/BoardStateManager";
@@ -33,7 +33,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const setQuantity = (furnitureType, quantity) => setOrderItems((items) => items.map((item) => item.furnitureType === furnitureType ? { ...item, quantity: Math.max(0, Math.min(10, quantity)) } : item));
   const effectiveOrderItems = useMemo(() => orderItems.map((item) => item.furnitureType === design.furnitureType ? { ...item, params: { ...design } } : item), [orderItems, design]);
   const pieces = useMemo(() => getOrderPieces(effectiveOrderItems, materialConfigs), [effectiveOrderItems, materialConfigs]);
-  const pieceValidation = useMemo(() => validateFurniturePieces(pieces, materialConfigs.melamine, optimizerSettings), [pieces, materialConfigs.melamine, optimizerSettings]);
+  const pieceValidation = useMemo(() => validateAllFurniturePieces(pieces, materialConfigs, optimizerSettings), [pieces, materialConfigs, optimizerSettings]);
   const productionValidationError = design.designValidationError || pieceValidation.error;
   const hardwareItems = useMemo(() => getOrderHardware(effectiveOrderItems), [effectiveOrderItems]);
   const optimizationKey = useMemo(() => JSON.stringify({

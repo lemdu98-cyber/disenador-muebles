@@ -29,18 +29,18 @@ export function getDrawerClearances(config = DEFAULT_DRAWER_SLIDE_CONFIG) {
   return { leftCm: preset.leftClearanceCm, rightCm: preset.rightClearanceCm };
 }
 
-export function getDrawerOpeningWidthCm({ furnitureType, widthCm, thicknessCm, drawers, deskConfig }) {
+export function getDrawerOpeningWidthCm({ furnitureType, widthCm, thicknessCm, drawers, deskConfig, wardrobeConfig }) {
   if (!drawers) return 0;
   if (furnitureType === "desk") return Math.max(0, Number(deskConfig?.drawerModuleWidthCm ?? 40) - thicknessCm * 2);
   if (furnitureType === "tvStand") return Math.min(widthCm * 0.38, 72);
-  if (furnitureType === "wardrobe") return widthCm * 0.5;
+  if (furnitureType === "wardrobe") return Math.max(0, Number(wardrobeConfig?.leftZoneWidthCm ?? 70));
   return widthCm - thicknessCm * 2;
 }
 
-export function calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers, thicknessCm, drawerSlideConfig, deskConfig }) {
+export function calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm, drawers, thicknessCm, drawerSlideConfig, deskConfig, wardrobeConfig }) {
   const config = { ...DEFAULT_DRAWER_SLIDE_CONFIG, ...drawerSlideConfig };
   const { leftCm, rightCm } = getDrawerClearances(config);
-  const interiorWidthCm = Math.max(0, getDrawerOpeningWidthCm({ furnitureType, widthCm, thicknessCm, drawers, deskConfig }));
+  const interiorWidthCm = Math.max(0, getDrawerOpeningWidthCm({ furnitureType, widthCm, thicknessCm, drawers, deskConfig, wardrobeConfig }));
   const externalWidthCm = Math.max(0, interiorWidthCm - leftCm - rightCm);
   const sideLengthCm = numberOr(config.lengthMm, 350) / 10;
   const availableDepthCm = Math.max(0, depthCm - thicknessCm * 2);
