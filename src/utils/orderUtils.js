@@ -3,7 +3,7 @@ import { getCutPieces, getFurnitureLabel } from "./cutPieces";
 export const FURNITURE_TYPES = ["wardrobe", "desk", "tvStand", "nightstand", "catHouse"];
 
 const DEFAULT_ORDER_DIMENSIONS = {
-  wardrobe: { widthCm: 180, heightCm: 220, depthCm: 60, doors: 2, drawers: 2, shelves: 3 },
+  wardrobe: { widthCm: 250, heightCm: 230, depthCm: 60, doors: 3, drawers: 6, shelves: 3 },
   desk: { widthCm: 140, heightCm: 75, depthCm: 60, doors: 2, drawers: 3, shelves: 3 },
   tvStand: { widthCm: 180, heightCm: 55, depthCm: 45, doors: 0, drawers: 0, shelves: 0 },
   nightstand: { widthCm: 50, heightCm: 55, depthCm: 40, doors: 2, drawers: 2, shelves: 3 },

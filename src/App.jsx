@@ -35,7 +35,7 @@ import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, WARDROBE_LIMITS } 
 import "./App.css";
 
 const MODELS = {
-  wardrobe: { label: "Ropero", dimensions: [180, 220, 60] },
+  wardrobe: { label: "Ropero", dimensions: [250, 230, 60] },
   desk: { label: "Escritorio", dimensions: [140, 75, 60] },
   tvStand: { label: "Mueble TV", dimensions: [180, 55, 45] },
   nightstand: { label: "Mesa de noche", dimensions: [50, 55, 40] },
@@ -44,11 +44,11 @@ const MODELS = {
 
 export default function App() {
   const [furnitureType, setFurnitureType] = useState("wardrobe");
-  const [widthCm, setWidthCm] = useState(180);
-  const [heightCm, setHeightCm] = useState(220);
+  const [widthCm, setWidthCm] = useState(250);
+  const [heightCm, setHeightCm] = useState(230);
   const [depthCm, setDepthCm] = useState(60);
-  const [doors, setDoors] = useState(2);
-  const [drawers, setDrawers] = useState(2);
+  const [doors, setDoors] = useState(3);
+  const [drawers, setDrawers] = useState(6);
   const [shelves, setShelves] = useState(3);
   const [activeModule, setActiveModule] = useState("design");
   const [materialConfigs, setMaterialConfigs] = useState(createMaterialConfig);
@@ -77,7 +77,7 @@ export default function App() {
       ? calculateNightstandDrawerCapacity({ heightCm, thicknessCm: melamineThickness * 100, drawerFrontConfig, structureConfig: nightstandStructureConfig })
       : null,
   [isDesk, isNightstand, heightCm, melamineThickness, deskConfig, drawerFrontConfig, nightstandStructureConfig]);
-  const drawerLimits = isDesk ? DESK_DRAWER_LIMITS : isNightstand ? NIGHTSTAND_DRAWER_LIMITS : isWardrobe ? WARDROBE_LIMITS.drawers : null;
+  const drawerLimits = isDesk ? DESK_DRAWER_LIMITS : isNightstand ? NIGHTSTAND_DRAWER_LIMITS : null;
   useEffect(() => {
     if (!drawerLimits || !drawerCapacity || drawers <= drawerCapacity.maxAllowed || drawerCapacity.maxAllowed < drawerLimits.min) return;
     const previous = drawers;
@@ -120,8 +120,8 @@ export default function App() {
     setWidthCm(newWidth);
     setHeightCm(newHeight);
     setDepthCm(newDepth);
-    setDoors(type === "tvStand" ? 0 : 2);
-    setDrawers(type === "desk" ? 3 : type === "catHouse" || type === "tvStand" ? 0 : 2);
+    setDoors(type === "tvStand" ? 0 : type === "wardrobe" ? 3 : 2);
+    setDrawers(type === "wardrobe" ? 6 : type === "desk" ? 3 : type === "catHouse" || type === "tvStand" ? 0 : 2);
     setShelves(type === "tvStand" ? 0 : 3);
     if (type === "desk") setDrawerSlideConfig((current) => ({ ...current, type: "telescopic", lengthMm: 350 }));
   };
@@ -156,9 +156,8 @@ export default function App() {
           {drawerAdjustmentMessage && <p className="configuration-warning">{drawerAdjustmentMessage}</p>}
           {drawerCapacity && drawerCapacity.maxAllowed >= drawerLimits.min && <p className="configuration-note">Máximo permitido con la altura actual: {drawerCapacity.maxAllowed} cajones.</p>}
         </> : <>
-          <p className="configuration-note">Dos puertas verticales fabricables.</p>
-          <label>Cajones<input type="number" min={WARDROBE_LIMITS.drawers.min} max={WARDROBE_LIMITS.drawers.max} value={drawers} onChange={updateDrawerCount} /></label>
-          <label>Repisas zona izquierda<input type="number" min={WARDROBE_LIMITS.shelves.min} max={WARDROBE_LIMITS.shelves.max} value={shelves} onChange={(event) => setShelves(Math.max(WARDROBE_LIMITS.shelves.min, Math.min(WARDROBE_LIMITS.shelves.max, Math.floor(Number(event.target.value) || WARDROBE_LIMITS.shelves.min))))} /></label>
+          <p className="configuration-note">Tres puertas y seis cajones fijos: tres en Cuerpo 1 y tres en Cuerpo 3.</p>
+          <label>Repisas para zapatos<input type="number" min={WARDROBE_LIMITS.shoeShelves.min} max={WARDROBE_LIMITS.shoeShelves.max} value={shelves} onChange={(event) => setShelves(Math.max(WARDROBE_LIMITS.shoeShelves.min, Math.min(WARDROBE_LIMITS.shoeShelves.max, Math.floor(Number(event.target.value) || WARDROBE_LIMITS.shoeShelves.min))))} /></label>
         </>}
       </section>
       {isCatHouse ? <CatHouseSettings config={catHouseConfig} onChange={setCatHouseConfig} thicknessMm={materialConfigs.melamine.thicknessMm} /> : <>
@@ -167,7 +166,7 @@ export default function App() {
         {isTvStand && <TvStandSettings config={tvStandConfig} onChange={setTvStandConfig} structure={tvStandStructure} />}
         {isWardrobe && <WardrobeSettings config={wardrobeConfig} onChange={setWardrobeConfig} structure={wardrobeStructure} />}
         {!isTvStand && <DrawerSlideSettings config={drawerSlideConfig} onChange={setDrawerSlideConfig} dimensions={drawerDimensions} disabled={!drawers} forceTelescopic={isDesk || isWardrobe} />}
-        {!isDesk && !isTvStand && <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} frontWidthCm={isNightstand ? widthCm : isWardrobe ? wardrobeStructure.leftOpeningWidthCm : undefined} forceOverlay={isNightstand || isWardrobe} />}
+        {!isDesk && !isTvStand && <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} frontWidthCm={isNightstand ? widthCm : isWardrobe ? wardrobeStructure.openingWidthCm : undefined} forceOverlay={isNightstand || isWardrobe} />}
       </>}
       {activeModule === "design" && <>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
