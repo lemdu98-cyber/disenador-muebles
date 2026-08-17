@@ -34,7 +34,8 @@ test("cut list contains one top, six crossbars, modular backs and explicitly nam
   assert.equal(countMatching(/^Base inferior Cuerpo/), 0);
   assert.equal(countMatching(/^Travesaño (frontal|trasero) inferior Cuerpo/), 6);
   assert.equal(countMatching(/^Repisa superior Cuerpo/), 3);
-  assert.equal(countMatching(/^Puerta Cuerpo/), 3);
+  assert.equal(countMatching(/^Puerta superior Cuerpo/), 3);
+  assert.equal(countMatching(/^Puerta principal Cuerpo/), 3);
   assert.equal(countMatching(/^Fondo cartón prensado Cuerpo/), 3);
   assert.equal(countMatching(/^Frente Cajón/), 6);
   assert.equal(countMatching(/^Base cartón prensado Cajón/), 6);
@@ -59,8 +60,21 @@ test("official hardboard defaults are centralized and remain independent from me
 test("hinged doors keep the normal top and exclude sliding-only pieces", () => {
   const pieces = getCutPieces({ ...design, materialConfigs: createMaterialConfig() });
   assert.equal(pieces.filter((piece) => piece.name === "Tapa superior" && piece.width === 60).length, 1);
-  assert.equal(pieces.filter((piece) => piece.name.startsWith("Puerta Cuerpo")).length, 3);
+  assert.equal(pieces.filter((piece) => piece.name.startsWith("Puerta superior Cuerpo")).length, 3);
+  assert.equal(pieces.filter((piece) => piece.name.startsWith("Puerta principal Cuerpo")).length, 3);
   assert.equal(pieces.some((piece) => piece.name === "Soporte frontal inferior para riel"), false);
+});
+
+test("hinged upper and main doors are separated and side main doors leave drawers visible", () => {
+  const structure = structureFor();
+  assert.equal(structure.mainDoorHeightsCm.length, 3);
+  assert.ok(structure.mainDoorHeightsCm[1] > structure.mainDoorHeightsCm[0]);
+  assert.equal(structure.mainDoorHeightsCm[0], structure.mainDoorHeightsCm[2]);
+  const upperBottom = structure.upperDoorCenterYCm - structure.upperDoorHeightCm / 2;
+  const mainTop = structure.mainDoorCentersYCm[0] + structure.mainDoorHeightsCm[0] / 2;
+  assert.ok(Math.abs((upperBottom - mainTop) - structure.hingedSectionGapCm) < 1e-9);
+  const sideMainBottom = structure.mainDoorCentersYCm[0] - structure.mainDoorHeightsCm[0] / 2;
+  assert.ok(sideMainBottom > structure.drawerShelfYCm + .75);
 });
 
 test("sliding doors extend only the top and add overlapped leaves plus the lower track support", () => {
@@ -73,6 +87,7 @@ test("sliding doors extend only the top and add overlapped leaves plus the lower
   assert.deepEqual([top.length, top.width], [250, 63]);
   assert.deepEqual([support.length, support.width], [250, 8]);
   assert.equal(doors.length, 3);
+  assert.equal(pieces.some((piece) => piece.name.startsWith("Puerta superior Cuerpo")), false);
   assert.ok(doors[0].width > (250 / 3));
   assert.equal(pieces.some((piece) => piece.name === "Tapa superior"), false);
   assert.equal(validateAllFurniturePieces(pieces, materialConfigs).valid, true);

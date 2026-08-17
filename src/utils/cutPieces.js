@@ -183,7 +183,11 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
       addPieces(pieces, `Travesaño frontal inferior Cuerpo ${body}`, 1, s.openingWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-front", location: `Parte frontal inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales y apoyado al piso" });
       addPieces(pieces, `Travesaño trasero inferior Cuerpo ${body}`, 1, s.openingWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-rear", location: `Parte trasera inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales, delante del fondo" });
       addPieces(pieces, `Repisa superior Cuerpo ${body}`, 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-      addPieces(pieces, s.isSlidingDoors ? `Puerta corrediza ${body}` : `Puerta Cuerpo ${body}`, 1, s.isSlidingDoors ? s.slidingDoorHeightCm : s.doorHeightCm, s.isSlidingDoors ? s.slidingDoorWidthCm : s.doorWidthCm, melamine);
+      if (s.isSlidingDoors) addPieces(pieces, `Puerta corrediza ${body}`, 1, s.slidingDoorHeightCm, s.slidingDoorWidthCm, melamine);
+      else {
+        addPieces(pieces, `Puerta superior Cuerpo ${body}`, 1, s.upperDoorHeightCm, s.doorWidthCm, melamine);
+        addPieces(pieces, `Puerta principal Cuerpo ${body}`, 1, s.mainDoorHeightsCm[body - 1], s.doorWidthCm, melamine);
+      }
       addPieces(pieces, `Fondo cartón prensado Cuerpo ${body}`, 1, s.backLayouts[body - 1].widthCm, heightCm, hardboard, { mounting: "external-rear", location: `Parte posterior exterior del Cuerpo ${body}`, installation: "Clavado sobre el perímetro posterior correspondiente" });
     }
     if (s.isSlidingDoors) addPieces(pieces, "Soporte frontal inferior para riel", 1, widthCm, s.slidingLowerSupportHeightCm, melamine, { mounting: "sliding-track-support", location: "Frente inferior continuo", installation: "Atornillado sobre los cuatro paneles verticales para recibir el riel inferior" });

@@ -15,6 +15,7 @@ export const DEFAULT_WARDROBE_CONFIG = {
   slidingDoorClearanceCm: .5,
   slidingLowerSupportHeightCm: 8,
   doorGapCm: .3,
+  hingedSectionGapCm: .3,
   doorEdgeGapCm: .2,
   rodDropCm: 9,
   minimumHangingHeightCm: 85,
@@ -79,6 +80,16 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const doorGapCm = Math.max(.2, num(config.doorGapCm, .3));
   const doorWidthCm = (widthCm - edgeGapCm * 2 - doorGapCm * 2) / 3;
   const doorHeightCm = heightCm - edgeGapCm * 2;
+  const hingedSectionGapCm = Math.max(.2, num(config.hingedSectionGapCm, .3));
+  const hingedTopEdgeCm = heightCm / 2 - edgeGapCm;
+  const upperDoorBottomEdgeCm = upperShelfYCm + hingedSectionGapCm / 2;
+  const upperDoorHeightCm = hingedTopEdgeCm - upperDoorBottomEdgeCm;
+  const upperDoorCenterYCm = (hingedTopEdgeCm + upperDoorBottomEdgeCm) / 2;
+  const mainDoorTopEdgeCm = upperShelfYCm - hingedSectionGapCm / 2;
+  const sideMainDoorBottomEdgeCm = drawerShelfYCm + thicknessCm / 2 + doorGapCm / 2;
+  const centerMainDoorBottomEdgeCm = -heightCm / 2 + edgeGapCm;
+  const mainDoorHeightsCm = [sideMainDoorBottomEdgeCm, centerMainDoorBottomEdgeCm, sideMainDoorBottomEdgeCm].map((bottom) => mainDoorTopEdgeCm - bottom);
+  const mainDoorCentersYCm = [sideMainDoorBottomEdgeCm, centerMainDoorBottomEdgeCm, sideMainDoorBottomEdgeCm].map((bottom) => (mainDoorTopEdgeCm + bottom) / 2);
   const isSlidingDoors = config.doorType === "sliding";
   const slidingDoorExtensionCm = num(config.slidingDoorExtensionCm, 3);
   const slidingDoorOverlapCm = num(config.slidingDoorOverlapCm, 4);
@@ -107,6 +118,8 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   if (isSlidingDoors && (slidingDoorExtensionCm <= thicknessCm || slidingDoorOverlapCm <= 0 || slidingDoorClearanceCm < 0)) errors.push("La extensión, solapamiento y holgura del sistema corredizo no son físicamente válidos.");
   if (isSlidingDoors && (slidingLowerSupportHeightCm < 5 || slidingLowerSupportHeightCm >= drawerRegionHeightCm / 2)) errors.push("La altura del soporte inferior del riel no es compatible con el ropero.");
   if (isSlidingDoors && (slidingDoorWidthCm <= 0 || slidingDoorHeightCm <= 0 || slidingDoorStepCm <= 0)) errors.push("Las puertas corredizas no tienen dimensiones útiles.");
+  if (!isSlidingDoors && (upperDoorHeightCm <= 0 || mainDoorHeightsCm.some((value) => value <= 0))) errors.push("Las puertas normales no tienen altura suficiente para cubrir sus compartimentos.");
+  if (!isSlidingDoors && upperDoorBottomEdgeCm <= mainDoorTopEdgeCm) errors.push("La holgura entre puertas superiores y principales es insuficiente.");
   return {
     config, bodyCount, drawersPerBody, totalDrawers: drawersPerBody * 2, externalWidthCm: widthCm, sideHeightCm, openingWidthCm,
     panelCentersXCm, bodyCentersXCm, backLayouts, upperCompartmentHeightCm, upperShelfYCm,
@@ -114,7 +127,8 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
     intermediateFreeHeightCm, intermediateGapCm, intermediateShelfYCentersCm,
     drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeBottomShelfClearanceCm, shoeBottomShelfYCm,
     shoeUsableHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
-    rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm, isSlidingDoors,
+    rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm,
+    hingedSectionGapCm, upperDoorHeightCm, upperDoorCenterYCm, mainDoorHeightsCm, mainDoorCentersYCm, isSlidingDoors,
     slidingDoorExtensionCm, slidingDoorOverlapCm, slidingTrackCount, slidingDoorClearanceCm,
     slidingLowerSupportHeightCm, topDepthCm, slidingDoorWidthCm, slidingDoorHeightCm,
     slidingDoorStepCm, slidingDoorClosedCentersXCm, slidingDoorOpenOffsetsXCm,

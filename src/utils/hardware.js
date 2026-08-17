@@ -1,7 +1,11 @@
 export function getHardwareItems({ furnitureType, drawers = 0, drawerSlideConfig, heightCm = 0, wardrobeConfig }) {
   if (furnitureType === "wardrobe") {
     const lengthCm = Number(drawerSlideConfig?.lengthMm || 350) / 10;
-    const hingesPerDoor = heightCm >= 210 ? 5 : heightCm >= 170 ? 4 : 3;
+    const upperHeightCm = Number(wardrobeConfig?.upperCompartmentHeightCm || 38);
+    const upperHingesPerDoor = upperHeightCm > 60 ? 3 : 2;
+    const sideMainHeightCm = Math.max(0, heightCm - upperHeightCm - Number(wardrobeConfig?.drawerRegionHeightCm || 58) - Number(wardrobeConfig?.lowerCrossbarHeightCm || 8));
+    const centerMainHeightCm = Math.max(0, heightCm - upperHeightCm);
+    const hingesForHeight = (doorHeightCm) => doorHeightCm >= 180 ? 5 : doorHeightCm >= 130 ? 4 : 3;
     const shared = [
       { id: "telescopic-slides", name: `Correderas telescópicas ${lengthCm} cm`, pairs: drawers, units: drawers * 2 },
       { id: "hanging-rod", name: "Barras para colgar", pairs: 0, units: 2 },
@@ -13,8 +17,9 @@ export function getHardwareItems({ furnitureType, drawers = 0, drawerSlideConfig
       { id: "sliding-guides", name: "Juegos de ruedas y guías", pairs: 3, units: 6 },
       { id: "handles", name: "Tiradores", pairs: 0, units: 3 + drawers },
     ] : [...shared,
-      { id: "hinges", name: "Bisagras de cazoleta", pairs: 0, units: hingesPerDoor * 3 },
-      { id: "handles", name: "Tiradores", pairs: 0, units: 3 + drawers },
+      { id: "upper-door-hinges", name: "Bisagras puertas superiores", pairs: 0, units: upperHingesPerDoor * 3 },
+      { id: "main-door-hinges", name: "Bisagras puertas principales", pairs: 0, units: hingesForHeight(sideMainHeightCm) * 2 + hingesForHeight(centerMainHeightCm) },
+      { id: "handles", name: "Tiradores", pairs: 0, units: 6 + drawers },
     ];
   }
   if (!drawers || !["desk", "nightstand"].includes(furnitureType)) return [];
