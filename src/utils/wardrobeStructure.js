@@ -8,6 +8,12 @@ export const DEFAULT_WARDROBE_CONFIG = {
   drawerRegionHeightCm: 58,
   shoeRegionHeightCm: 68,
   lowerCrossbarHeightCm: 8,
+  doorType: "hinged",
+  slidingDoorExtensionCm: 3,
+  slidingDoorOverlapCm: 4,
+  slidingTrackCount: 2,
+  slidingDoorClearanceCm: .5,
+  slidingLowerSupportHeightCm: 8,
   doorGapCm: .3,
   doorEdgeGapCm: .2,
   rodDropCm: 9,
@@ -73,6 +79,19 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const doorGapCm = Math.max(.2, num(config.doorGapCm, .3));
   const doorWidthCm = (widthCm - edgeGapCm * 2 - doorGapCm * 2) / 3;
   const doorHeightCm = heightCm - edgeGapCm * 2;
+  const isSlidingDoors = config.doorType === "sliding";
+  const slidingDoorExtensionCm = num(config.slidingDoorExtensionCm, 3);
+  const slidingDoorOverlapCm = num(config.slidingDoorOverlapCm, 4);
+  const slidingTrackCount = Math.max(2, Math.floor(num(config.slidingTrackCount, 2)));
+  const slidingDoorClearanceCm = num(config.slidingDoorClearanceCm, .5);
+  const slidingLowerSupportHeightCm = num(config.slidingLowerSupportHeightCm, 8);
+  const topDepthCm = depthCm + (isSlidingDoors ? slidingDoorExtensionCm : 0);
+  const slidingCoverWidthCm = widthCm - slidingDoorClearanceCm * 2;
+  const slidingDoorWidthCm = (slidingCoverWidthCm + slidingDoorOverlapCm * 2) / 3;
+  const slidingDoorHeightCm = heightCm - thicknessCm - slidingLowerSupportHeightCm - slidingDoorClearanceCm * 2;
+  const slidingDoorStepCm = slidingDoorWidthCm - slidingDoorOverlapCm;
+  const slidingDoorClosedCentersXCm = [-slidingDoorStepCm, 0, slidingDoorStepCm];
+  const slidingDoorOpenOffsetsXCm = [slidingDoorStepCm, -slidingDoorStepCm, -slidingDoorStepCm];
   const drawerBoxWidthCm = Math.max(0, openingWidthCm - (drawerDimensions?.totalClearanceCm || 0));
   const errors = [];
   if (widthCm <= thicknessCm * 4 || heightCm <= thicknessCm * 3 || depthCm <= thicknessCm * 2) errors.push("Las dimensiones exteriores no permiten construir tres cuerpos.");
@@ -85,6 +104,9 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   if (intermediateGapCm < 20) errors.push("No existe altura suficiente para distribuir simétricamente las repisas intermedias del Cuerpo 1.");
   if (!drawerDimensions?.hasEnoughDepth) errors.push(`La corredera de ${drawerDepthCm.toFixed(1)} cm es demasiado larga para el fondo disponible.`);
   if (body2HangingHeightCm < num(config.minimumHangingHeightCm, 85) || body3HangingHeightCm < num(config.minimumHangingHeightCm, 85)) errors.push("La altura disponible para ropa colgada es insuficiente.");
+  if (isSlidingDoors && (slidingDoorExtensionCm <= thicknessCm || slidingDoorOverlapCm <= 0 || slidingDoorClearanceCm < 0)) errors.push("La extensión, solapamiento y holgura del sistema corredizo no son físicamente válidos.");
+  if (isSlidingDoors && (slidingLowerSupportHeightCm < 5 || slidingLowerSupportHeightCm >= drawerRegionHeightCm / 2)) errors.push("La altura del soporte inferior del riel no es compatible con el ropero.");
+  if (isSlidingDoors && (slidingDoorWidthCm <= 0 || slidingDoorHeightCm <= 0 || slidingDoorStepCm <= 0)) errors.push("Las puertas corredizas no tienen dimensiones útiles.");
   return {
     config, bodyCount, drawersPerBody, totalDrawers: drawersPerBody * 2, externalWidthCm: widthCm, sideHeightCm, openingWidthCm,
     panelCentersXCm, bodyCentersXCm, backLayouts, upperCompartmentHeightCm, upperShelfYCm,
@@ -92,7 +114,10 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
     intermediateFreeHeightCm, intermediateGapCm, intermediateShelfYCentersCm,
     drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeBottomShelfClearanceCm, shoeBottomShelfYCm,
     shoeUsableHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
-    rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm,
+    rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm, isSlidingDoors,
+    slidingDoorExtensionCm, slidingDoorOverlapCm, slidingTrackCount, slidingDoorClearanceCm,
+    slidingLowerSupportHeightCm, topDepthCm, slidingDoorWidthCm, slidingDoorHeightCm,
+    slidingDoorStepCm, slidingDoorClosedCentersXCm, slidingDoorOpenOffsetsXCm,
     doorGapCm, edgeGapCm, drawerBoxWidthCm,
     drawerBackWidthCm: Math.max(0, drawerBoxWidthCm - thicknessCm * 2), bottomThicknessCm,
     valid: errors.length === 0, errors, error: errors.join(" "),

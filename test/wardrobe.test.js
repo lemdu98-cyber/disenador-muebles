@@ -56,6 +56,35 @@ test("official hardboard defaults are centralized and remain independent from me
   );
 });
 
+test("hinged doors keep the normal top and exclude sliding-only pieces", () => {
+  const pieces = getCutPieces({ ...design, materialConfigs: createMaterialConfig() });
+  assert.equal(pieces.filter((piece) => piece.name === "Tapa superior" && piece.width === 60).length, 1);
+  assert.equal(pieces.filter((piece) => piece.name.startsWith("Puerta Cuerpo")).length, 3);
+  assert.equal(pieces.some((piece) => piece.name === "Soporte frontal inferior para riel"), false);
+});
+
+test("sliding doors extend only the top and add overlapped leaves plus the lower track support", () => {
+  const wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, doorType: "sliding" };
+  const materialConfigs = createMaterialConfig();
+  const pieces = getCutPieces({ ...design, wardrobeConfig, materialConfigs });
+  const top = pieces.find((piece) => piece.name === "Tapa superior extendida");
+  const support = pieces.find((piece) => piece.name === "Soporte frontal inferior para riel");
+  const doors = pieces.filter((piece) => piece.name.startsWith("Puerta corrediza"));
+  assert.deepEqual([top.length, top.width], [250, 63]);
+  assert.deepEqual([support.length, support.width], [250, 8]);
+  assert.equal(doors.length, 3);
+  assert.ok(doors[0].width > (250 / 3));
+  assert.equal(pieces.some((piece) => piece.name === "Tapa superior"), false);
+  assert.equal(validateAllFurniturePieces(pieces, materialConfigs).valid, true);
+});
+
+test("changing the sliding extension recalculates the top without deepening the carcass", () => {
+  const structure = structureFor({ wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, doorType: "sliding", slidingDoorExtensionCm: 4 } });
+  assert.equal(structure.topDepthCm, 64);
+  assert.equal(structure.sideHeightCm, 228.5);
+  assert.equal(structure.valid, true);
+});
+
 test("drawers and shoe shelves start above crossbars and intermediate shelves split three equal clearances", () => {
   const structure = structureFor();
   const lowestDrawerBottom = structure.drawerLayouts[0].centerYCm - structure.drawerFrontHeightCm / 2;

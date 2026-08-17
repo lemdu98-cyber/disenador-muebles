@@ -1,12 +1,19 @@
-export function getHardwareItems({ furnitureType, drawers = 0, drawerSlideConfig, heightCm = 0 }) {
+export function getHardwareItems({ furnitureType, drawers = 0, drawerSlideConfig, heightCm = 0, wardrobeConfig }) {
   if (furnitureType === "wardrobe") {
     const lengthCm = Number(drawerSlideConfig?.lengthMm || 350) / 10;
     const hingesPerDoor = heightCm >= 210 ? 5 : heightCm >= 170 ? 4 : 3;
-    return [
+    const shared = [
       { id: "telescopic-slides", name: `Correderas telescópicas ${lengthCm} cm`, pairs: drawers, units: drawers * 2 },
-      { id: "hinges", name: "Bisagras de cazoleta", pairs: 0, units: hingesPerDoor * 3 },
       { id: "hanging-rod", name: "Barras para colgar", pairs: 0, units: 2 },
       { id: "rod-supports", name: "Soportes de barra", pairs: 2, units: 4 },
+    ];
+    return wardrobeConfig?.doorType === "sliding" ? [...shared,
+      { id: "sliding-upper-track", name: "Riel superior para puertas corredizas", pairs: 0, units: 1 },
+      { id: "sliding-lower-track", name: "Riel inferior para puertas corredizas", pairs: 0, units: 1 },
+      { id: "sliding-guides", name: "Juegos de ruedas y guías", pairs: 3, units: 6 },
+      { id: "handles", name: "Tiradores", pairs: 0, units: 3 + drawers },
+    ] : [...shared,
+      { id: "hinges", name: "Bisagras de cazoleta", pairs: 0, units: hingesPerDoor * 3 },
       { id: "handles", name: "Tiradores", pairs: 0, units: 3 + drawers },
     ];
   }
