@@ -5,6 +5,7 @@ import { createMaterialConfig } from "../src/utils/materialConfig.js";
 import { validateAllFurniturePieces } from "../src/utils/manufacturingValidation.js";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, SHOE_BOTTOM_SHELF_CLEARANCE_CM } from "../src/utils/wardrobeStructure.js";
+import { calculateLeftHingedDoorTransform, HINGED_DOOR_OPEN_ANGLE_RAD } from "../src/utils/wardrobeDoors.js";
 
 const design = { furnitureType: "wardrobe", widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, wardrobeConfig: DEFAULT_WARDROBE_CONFIG };
 const structureFor = (overrides = {}) => {
@@ -75,6 +76,18 @@ test("hinged upper and main doors are separated and side main doors leave drawer
   assert.ok(Math.abs((upperBottom - mainTop) - structure.hingedSectionGapCm) < 1e-9);
   const sideMainBottom = structure.mainDoorCentersYCm[0] - structure.mainDoorHeightsCm[0] / 2;
   assert.ok(sideMainBottom > structure.drawerShelfYCm + .75);
+});
+
+test("all normal doors use a left pivot, right handle and a maximum 90 degree outward opening", () => {
+  const closed = calculateLeftHingedDoorTransform({ centerX: 2, width: .8, open: false });
+  assert.equal(closed.hingeX, 1.6);
+  assert.equal(closed.panelCenterX, .4);
+  assert.ok(closed.handleCenterX > closed.panelCenterX);
+  assert.equal(closed.rotationY, 0);
+
+  const open = calculateLeftHingedDoorTransform({ centerX: 2, width: .8, open: true });
+  assert.equal(HINGED_DOOR_OPEN_ANGLE_RAD, Math.PI / 2);
+  assert.equal(open.rotationY, -Math.PI / 2);
 });
 
 test("sliding doors extend only the top and add overlapped leaves plus the lower track support", () => {
