@@ -112,7 +112,7 @@ export default function App() {
   const generatedPieces = getCutPieces({ ...designInputs, materialConfigs });
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
-  const design = { ...designInputs, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
+  const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
   const hardwareItems = getHardwareItems(design);
   const updateType = (type) => {
     const [newWidth, newHeight, newDepth] = MODELS[type].dimensions;

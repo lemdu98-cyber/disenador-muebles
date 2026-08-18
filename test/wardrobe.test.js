@@ -6,6 +6,7 @@ import { validateAllFurniturePieces } from "../src/utils/manufacturingValidation
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, SHOE_BOTTOM_SHELF_CLEARANCE_CM } from "../src/utils/wardrobeStructure.js";
 import { calculateLeftHingedDoorTransform, HINGED_DOOR_OPEN_ANGLE_RAD } from "../src/utils/wardrobeDoors.js";
+import { calculateHingePositionsCm, getHardwareItems, hingesForDoorHeight } from "../src/utils/hardware.js";
 
 const design = { furnitureType: "wardrobe", widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, wardrobeConfig: DEFAULT_WARDROBE_CONFIG };
 const structureFor = (overrides = {}) => {
@@ -76,6 +77,28 @@ test("hinged upper and main doors are separated and side main doors leave drawer
   assert.ok(Math.abs((upperBottom - mainTop) - structure.hingedSectionGapCm) < 1e-9);
   const sideMainBottom = structure.mainDoorCentersYCm[0] - structure.mainDoorHeightsCm[0] / 2;
   assert.ok(sideMainBottom > structure.drawerShelfYCm + .75);
+  const centerMainBottom = structure.mainDoorCentersYCm[1] - structure.mainDoorHeightsCm[1] / 2;
+  assert.ok(Math.abs(centerMainBottom - (structure.lowerStructureTopCm + structure.doorGapCm)) < 1e-9);
+  assert.ok(centerMainBottom > structure.lowerStructureTopCm);
+});
+
+test("body 2 main door height, cut list and hinges derive from the shortened geometry", () => {
+  const structure = structureFor();
+  const pieces = getCutPieces({ ...design, materialConfigs: createMaterialConfig() });
+  const centerDoor = pieces.find((piece) => piece.name === "Puerta principal Cuerpo 2");
+  assert.equal(centerDoor.length, structure.mainDoorHeightsCm[1]);
+
+  const hardware = getHardwareItems({ ...design, wardrobeMainDoorHeightsCm: structure.mainDoorHeightsCm });
+  const expectedMainHinges = structure.mainDoorHeightsCm.reduce((total, height) => total + hingesForDoorHeight(height), 0);
+  assert.equal(hardware.find((item) => item.id === "main-door-hinges").units, expectedMainHinges);
+  const positions = calculateHingePositionsCm(structure.mainDoorHeightsCm[1]);
+  assert.equal(positions.length, hingesForDoorHeight(structure.mainDoorHeightsCm[1]));
+  assert.ok(positions[0] > 0 && positions.at(-1) < structure.mainDoorHeightsCm[1]);
+
+  const tallerCrossbar = structureFor({ wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, lowerCrossbarHeightCm: 12, doorGapCm: .25 } });
+  const tallerCrossbarBottom = tallerCrossbar.mainDoorBottomEdgesCm[1];
+  assert.ok(Math.abs(tallerCrossbarBottom - (tallerCrossbar.lowerStructureTopCm + .25)) < 1e-9);
+  assert.ok(tallerCrossbar.mainDoorHeightsCm[1] < structure.mainDoorHeightsCm[1]);
 });
 
 test("all normal doors use a left pivot, right handle and a maximum 90 degree outward opening", () => {

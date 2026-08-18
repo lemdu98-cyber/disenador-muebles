@@ -87,7 +87,9 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const upperDoorCenterYCm = (hingedTopEdgeCm + upperDoorBottomEdgeCm) / 2;
   const mainDoorTopEdgeCm = upperShelfYCm - hingedSectionGapCm / 2;
   const sideMainDoorBottomEdgeCm = drawerShelfYCm + thicknessCm / 2 + doorGapCm / 2;
-  const centerMainDoorBottomEdgeCm = -heightCm / 2 + edgeGapCm;
+  // The center door finishes above the front crossbar instead of covering it.
+  // doorGapCm is the configured frontal clearance (3 mm by default).
+  const centerMainDoorBottomEdgeCm = lowerStructureTopCm + doorGapCm;
   const mainDoorHeightsCm = [sideMainDoorBottomEdgeCm, centerMainDoorBottomEdgeCm, sideMainDoorBottomEdgeCm].map((bottom) => mainDoorTopEdgeCm - bottom);
   const mainDoorCentersYCm = [sideMainDoorBottomEdgeCm, centerMainDoorBottomEdgeCm, sideMainDoorBottomEdgeCm].map((bottom) => (mainDoorTopEdgeCm + bottom) / 2);
   const isSlidingDoors = config.doorType === "sliding";
@@ -128,7 +130,8 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
     drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeBottomShelfClearanceCm, shoeBottomShelfYCm,
     shoeUsableHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
     rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm,
-    hingedSectionGapCm, upperDoorHeightCm, upperDoorCenterYCm, mainDoorHeightsCm, mainDoorCentersYCm, isSlidingDoors,
+    hingedSectionGapCm, upperDoorHeightCm, upperDoorCenterYCm, mainDoorHeightsCm, mainDoorCentersYCm,
+    mainDoorBottomEdgesCm: [sideMainDoorBottomEdgeCm, centerMainDoorBottomEdgeCm, sideMainDoorBottomEdgeCm], isSlidingDoors,
     slidingDoorExtensionCm, slidingDoorOverlapCm, slidingTrackCount, slidingDoorClearanceCm,
     slidingLowerSupportHeightCm, topDepthCm, slidingDoorWidthCm, slidingDoorHeightCm,
     slidingDoorStepCm, slidingDoorClosedCentersXCm, slidingDoorOpenOffsetsXCm,
