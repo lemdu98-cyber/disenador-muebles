@@ -30,6 +30,7 @@ import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "./utils/tvSt
 import { DEFAULT_OPTIMIZER_SETTINGS } from "./utils/optimizer/optimizerConfig";
 import { getCutPieces } from "./utils/cutPieces";
 import { validateAllFurniturePieces } from "./utils/manufacturingValidation";
+import { useAuth } from "./auth/useAuth";
 import { calculateDeskDrawerCapacity, calculateNightstandDrawerCapacity, DESK_DRAWER_LIMITS, NIGHTSTAND_DRAWER_LIMITS } from "./utils/drawerLimits";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, WARDROBE_LIMITS } from "./utils/wardrobeStructure";
 import "./App.css";
@@ -43,6 +44,7 @@ const MODELS = {
 };
 
 export default function App() {
+  const { user, logout } = useAuth();
   const [furnitureType, setFurnitureType] = useState("wardrobe");
   const [widthCm, setWidthCm] = useState(250);
   const [heightCm, setHeightCm] = useState(230);
@@ -137,7 +139,10 @@ export default function App() {
 
   return <main className="app-shell">
     <aside className="control-panel">
-      <h1>MuebleCAD</h1>
+      <div className="app-heading">
+        <div><h1>MuebleCAD</h1><p className="session-user" title={user?.email}>Sesión: {user?.email}</p></div>
+        <button type="button" className="logout-button" onClick={logout}>Cerrar sesión</button>
+      </div>
       <p className="subtitle">Diseño y presupuesto para carpintería</p>
       <div className="module-tabs">
         <button type="button" className={activeModule === "design" ? "active" : ""} onClick={() => setActiveModule("design")}>Diseño</button>

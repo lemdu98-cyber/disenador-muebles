@@ -60,3 +60,14 @@ git push
 La ruta base y la URL de Pages se recalcularán automáticamente para el nuevo
 nombre. Los repositorios especiales `USUARIO.github.io` utilizan `/` como ruta
 base; los demás utilizan `/NOMBRE-DEL-REPOSITORIO/`.
+# Autenticación con Supabase
+
+MuebleCAD requiere una sesión de Supabase Auth con correo y contraseña. Para desarrollo, copia `.env.example` como `.env.local` y configura `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`.
+
+En Supabase Dashboard, comprueba que el proveedor **Email** esté habilitado en Authentication. Crea los usuarios manualmente desde **Authentication → Users → Add user**; la aplicación no ofrece registro público.
+
+Para desplegar, crea los repository secrets `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` desde **Settings → Secrets and variables → Actions → New repository secret**. El workflow los inyecta durante el build. Nunca uses una Secret Key ni una clave `service_role` en esta aplicación cliente.
+
+## Desarrollo local
+
+Ejecuta `npm run dev`. Para comprobar producción, ejecuta `npm run build` y luego `npm run preview`.
