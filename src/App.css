@@ -4,6 +4,23 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 4px; font-size: 25px; color: #3c2717; }
 h2 { margin-bottom: 10px; font-size: 15px; color: #5c3820; }
 .subtitle { margin-bottom: 24px; color: #786a5e; font-size: 13px; }
+.design-actions { margin-bottom: 18px; padding: 12px; border: 1px solid #e2d5c6; border-radius: 8px; background: #fdf8ef; }
+.design-actions label { margin-top: 0; }
+.design-actions > div, .design-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.design-actions button, .design-library button { padding: 7px 9px; border: 1px solid #cdb9a6; border-radius: 6px; color: #5c3820; background: #fff8ef; cursor: pointer; font-size: 11px; font-weight: 700; }
+.design-actions button:disabled, .design-library button:disabled { cursor: not-allowed; opacity: .5; }
+.design-message { margin: 9px 0 0; font-size: 11px; font-weight: 700; }
+.design-message-success { color: #17653a; }
+.design-message-error { color: #a32d22; }
+.design-library { margin: 0 0 18px; }
+.design-library-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.design-library-heading h2 { margin: 0; }
+.design-list { display: grid; gap: 8px; margin-top: 10px; }
+.design-list article { display: grid; gap: 7px; padding: 9px; border: 1px solid #e6ded3; border-radius: 7px; background: #fff; }
+.design-list article.current { border-color: #8b5a2b; background: #fff9f0; }
+.design-list article strong, .design-list article small { display: block; }
+.design-list article small { margin-top: 3px; color: #786a5e; font-size: 10px; }
+.design-row-actions .danger { color: #a32d22; }
 .module-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; }
 .module-tabs button, .production-counter button, .primary-action, .scrap-card button { border: 1px solid #d8ccc0; border-radius: 6px; padding: 8px; cursor: pointer; color: #5c3820; background: #f8f1e8; font-weight: 700; }
 .module-tabs button.active, .primary-action { color: #fff; border-color: #6e4328; background: #6e4328; }

@@ -20,6 +20,7 @@ import HardwareSummary from "./components/HardwareSummary";
 import TvStandSettings from "./components/TvStandSettings";
 import OptimizerSettings from "./components/OptimizerSettings";
 import ManufacturingStatus from "./components/ManufacturingStatus";
+import DesignLibrary from "./components/DesignLibrary";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -33,6 +34,8 @@ import { validateAllFurniturePieces } from "./utils/manufacturingValidation";
 import { useAuth } from "./auth/useAuth";
 import { calculateDeskDrawerCapacity, calculateNightstandDrawerCapacity, DESK_DRAWER_LIMITS, NIGHTSTAND_DRAWER_LIMITS } from "./utils/drawerLimits";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, WARDROBE_LIMITS } from "./utils/wardrobeStructure";
+import { createDesign, getDesign, updateDesign } from "./services/furnitureDesigns";
+import { assertSupportedDesign, deserializeDesignConfig, serializeDesignConfig } from "./utils/designPersistence";
 import "./App.css";
 
 const MODELS = {
@@ -63,6 +66,12 @@ export default function App() {
   const [wardrobeConfig, setWardrobeConfig] = useState(DEFAULT_WARDROBE_CONFIG);
   const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
   const [drawerAdjustmentMessage, setDrawerAdjustmentMessage] = useState("");
+  const [currentDesign, setCurrentDesign] = useState(null);
+  const [designName, setDesignName] = useState("");
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [designBusy, setDesignBusy] = useState(false);
+  const [designMessage, setDesignMessage] = useState(null);
+  const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
@@ -126,6 +135,9 @@ export default function App() {
     setDrawers(type === "wardrobe" ? 6 : type === "desk" ? 3 : type === "catHouse" || type === "tvStand" ? 0 : 2);
     setShelves(type === "tvStand" ? 0 : 3);
     if (type === "desk") setDrawerSlideConfig((current) => ({ ...current, type: "telescopic", lengthMm: 350 }));
+    setCurrentDesign(null);
+    setDesignName("");
+    setDesignMessage(null);
   };
   const updateDimension = (setter, minimum = 1) => (event) => setter(Math.max(minimum, Number(event.target.value) || minimum));
   const updateDrawerCount = (event) => {
@@ -137,6 +149,69 @@ export default function App() {
     setDrawerAdjustmentMessage(requested === adjusted ? "" : `La cantidad permitida con la configuración actual es de ${drawerLimits.min} a ${maximum} cajones.`);
   };
 
+  const configForPersistence = () => serializeDesignConfig({
+    ...designInputs, materialConfigs, optimizerSettings,
+  });
+
+  const saveDesign = async (asNew = false) => {
+    const name = designName.trim();
+    if (!name) {
+      setDesignMessage({ type: "error", text: "Escribe un nombre para guardar el diseño." });
+      return;
+    }
+    setDesignBusy(true);
+    setDesignMessage(null);
+    try {
+      const payload = { name, furnitureType, config: configForPersistence() };
+      const saved = currentDesign && !asNew
+        ? await updateDesign(currentDesign.id, payload)
+        : await createDesign(payload);
+      setCurrentDesign({ id: saved.id, name: saved.name });
+      setDesignName(saved.name);
+      setLibraryRefreshKey((value) => value + 1);
+      setDesignMessage({ type: "success", text: currentDesign && !asNew ? "Cambios guardados." : "Diseño guardado." });
+    } catch (reason) {
+      console.error("No se pudo guardar el diseño:", reason);
+      setDesignMessage({ type: "error", text: "No se pudo guardar el diseño." });
+    } finally { setDesignBusy(false); }
+  };
+
+  const loadDesign = async (id) => {
+    setDesignBusy(true);
+    setDesignMessage(null);
+    try {
+      const saved = assertSupportedDesign(await getDesign(id));
+      if (!MODELS[saved.furniture_type]) throw new Error(`Tipo de mueble desconocido: ${saved.furniture_type}.`);
+      const { dimensions, quantities, furniture, materialThicknesses } = deserializeDesignConfig(saved.furniture_type, saved.config);
+      setFurnitureType(saved.furniture_type);
+      setWidthCm(dimensions.widthCm);
+      setHeightCm(dimensions.heightCm);
+      setDepthCm(dimensions.depthCm);
+      setDoors(quantities.doors ?? 0);
+      setDrawers(quantities.drawers ?? 0);
+      setShelves(quantities.shelves ?? 0);
+      setDrawerSlideConfig({ ...DEFAULT_DRAWER_SLIDE_CONFIG, ...furniture.drawerSlideConfig });
+      setDrawerFrontConfig({ ...DEFAULT_DRAWER_FRONT_CONFIG, ...furniture.drawerFrontConfig });
+      setCatHouseConfig((current) => ({ ...current, ...furniture.catHouseConfig }));
+      setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...furniture.nightstandStructureConfig });
+      setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig });
+      setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig });
+      setWardrobeConfig({ ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig });
+      setMaterialConfigs((current) => ({
+        melamine: { ...current.melamine, ...(materialThicknesses.melamine === undefined ? {} : { thicknessMm: materialThicknesses.melamine }) },
+        hardboard: { ...current.hardboard, ...(materialThicknesses.hardboard === undefined ? {} : { thicknessMm: materialThicknesses.hardboard }) },
+      }));
+      setCurrentDesign({ id: saved.id, name: saved.name });
+      setDesignName(saved.name);
+      setActiveModule("design");
+      setLibraryOpen(false);
+      setDesignMessage({ type: "success", text: `Diseño “${saved.name}” abierto.` });
+    } catch (reason) {
+      console.error("No se pudo abrir el diseño:", reason);
+      setDesignMessage({ type: "error", text: reason.message || "No se pudo abrir el diseño." });
+    } finally { setDesignBusy(false); }
+  };
+
   return <main className="app-shell">
     <aside className="control-panel">
       <div className="app-heading">
@@ -144,6 +219,23 @@ export default function App() {
         <button type="button" className="logout-button" onClick={logout}>Cerrar sesión</button>
       </div>
       <p className="subtitle">Diseño y presupuesto para carpintería</p>
+      <section className="design-actions" aria-label="Persistencia de diseños">
+        <label>Nombre del diseño<input type="text" maxLength="160" placeholder={`${MODELS[furnitureType].label} sin nombre`} value={designName} onChange={(event) => setDesignName(event.target.value)} /></label>
+        <div>
+          <button type="button" className="primary-action" disabled={designBusy} onClick={() => saveDesign(false)}>{currentDesign ? "Guardar cambios" : "Guardar diseño"}</button>
+          {currentDesign && <button type="button" disabled={designBusy} onClick={() => saveDesign(true)}>Guardar como nuevo</button>}
+          <button type="button" disabled={designBusy} onClick={() => setLibraryOpen((value) => !value)}>Mis diseños</button>
+        </div>
+        {designMessage && <p className={`design-message design-message-${designMessage.type}`}>{designMessage.text}</p>}
+      </section>
+      <DesignLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} onLoad={loadDesign} currentDesignId={currentDesign?.id} refreshKey={libraryRefreshKey} onDeleted={(id) => {
+        if (currentDesign?.id === id) { setCurrentDesign(null); setDesignName(""); }
+      }} onRenamed={(renamed) => {
+        if (currentDesign?.id === renamed.id) {
+          setCurrentDesign({ id: renamed.id, name: renamed.name });
+          setDesignName(renamed.name);
+        }
+      }} />
       <div className="module-tabs">
         <button type="button" className={activeModule === "design" ? "active" : ""} onClick={() => setActiveModule("design")}>Diseño</button>
         <button type="button" className={activeModule === "production" ? "active" : ""} onClick={() => setActiveModule("production")}>Producción</button>
