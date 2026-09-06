@@ -1,6 +1,7 @@
 import { DESK_DRAWER_LIMITS, NIGHTSTAND_DRAWER_LIMITS } from "./drawerLimits.js";
 import { normalizeWardrobeSectionWidthRatios, WARDROBE_LIMITS } from "./wardrobeStructure.js";
 import { normalizeTvStandSectionWidthRatios } from "./tvStandStructure.js";
+import { normalizeDrawerHeightRatios } from "./nightstandStructure.js";
 
 export const PROPOSAL_TYPES = ["unknown", "nightstand", "desk", "tvStand", "catHouse", "wardrobe"];
 
@@ -20,6 +21,7 @@ export function validateFurnitureProposal(proposal) {
     errors.push(`La cantidad de cajones debe estar entre ${limits.min} y ${limits.max}.`);
   }
   if (proposal.detectedType === "desk" && proposal.structure.drawerModule && !proposal.structure.drawerModule.valid) errors.push(proposal.structure.drawerModule.warning || "No se pudo determinar una única cajonera.");
+  if (proposal.detectedType === "nightstand" && proposal.structure.drawerLayout && (!proposal.structure.drawerLayout.valid || proposal.structure.drawerLayout.ratios?.length !== drawers)) errors.push(proposal.structure.drawerLayout.warning || "No se pudo determinar una única columna vertical de cajones.");
   if (proposal.detectedType === "tvStand" && proposal.structure.sectionLayout && (proposal.structure.sectionLayout.length !== 2 || proposal.structure.layoutCanNormalizeSections !== true)) errors.push("El TV Stand requiere exactamente 2 secciones válidas, sin huecos ni solapamientos.");
   if (proposal.detectedType === "wardrobe") {
     const shelves = Number(proposal.structure.shelves);
@@ -55,6 +57,10 @@ export function proposalToNormalizedConfig(proposal) {
     quantities.shelves = Number(proposal.structure.shelves);
   }
   const furniture = {};
+  if (proposal.detectedType === "nightstand" && proposal.structure.drawerLayout?.valid) {
+    const normalized = normalizeDrawerHeightRatios(proposal.structure.drawerLayout.ratios, Number(proposal.structure.drawers));
+    if (normalized.valid) furniture.nightstandStructureConfig = { drawerHeightRatios: normalized.ratios };
+  }
   if (proposal.detectedType === "desk" && proposal.structure.drawerModule?.valid) furniture.deskConfig = {
     drawerModuleSide: proposal.structure.drawerModule.side,
     drawerModuleWidthRatio: proposal.structure.drawerModule.widthRatio,

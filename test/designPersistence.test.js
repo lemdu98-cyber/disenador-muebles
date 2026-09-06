@@ -111,3 +111,12 @@ test("persiste 35/65 del TV Stand y diseños antiguos reciben 50/50", () => {
   const legacy = deserializeDesignConfig("tvStand", { dimensions: {}, quantities: {}, furniture: { tvStandConfig: { dividerEnabled: true } }, materials: {} });
   assert.deepEqual(legacy.furniture.tvStandConfig.sectionWidthRatios, [.5, .5]);
 });
+
+test("persiste 40/60 de Mesa de Noche y legacy usa ratios iguales según cajones", () => {
+  const saved = serializeDesignConfig({ ...state, furnitureType: "nightstand", drawers: 2, nightstandStructureConfig: { drawerHeightRatios: [.4, .6] } });
+  assert.deepEqual(deserializeDesignConfig("nightstand", saved).furniture.nightstandStructureConfig.drawerHeightRatios, [.4, .6]);
+  const legacyTwo = deserializeDesignConfig("nightstand", { dimensions: { widthCm: 50, heightCm: 55, depthCm: 40 }, quantities: { drawers: 2 }, furniture: {} });
+  const legacyThree = deserializeDesignConfig("nightstand", { dimensions: { widthCm: 50, heightCm: 55, depthCm: 40 }, quantities: { drawers: 3 }, furniture: {} });
+  assert.deepEqual(legacyTwo.furniture.nightstandStructureConfig.drawerHeightRatios, [.5, .5]);
+  assert.deepEqual(legacyThree.furniture.nightstandStructureConfig.drawerHeightRatios, [1 / 3, 1 / 3, 1 / 3]);
+});

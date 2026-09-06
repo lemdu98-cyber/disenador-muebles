@@ -12,12 +12,12 @@ import { validateEdgeBanding } from "./edgeBanding.js";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
 const addPieces = (pieces, name, quantity, length, width, material, details = {}) => {
-  const { lengthStrategy = "nearest", widthStrategy = "nearest", maxLengthCm = Infinity, maxWidthCm = Infinity, grainRequired = false, ...pieceDetails } = details;
+  const { lengthStrategy = "nearest", widthStrategy = "nearest", maxLengthCm = Infinity, maxWidthCm = Infinity, grainRequired = false, idStart = 1, ...pieceDetails } = details;
   for (let index = 0; index < quantity; index += 1) {
     const safeLength = snapCutDimensionWithConstraints(length, { maxCm: maxLengthCm, preferredStrategy: lengthStrategy }) ?? 0;
     const safeWidth = snapCutDimensionWithConstraints(width, { maxCm: maxWidthCm, preferredStrategy: widthStrategy }) ?? 0;
     pieces.push({
-      id: `${material.id}-${name}-${index + 1}`,
+      id: `${material.id}-${name}-${idStart + index}`,
       name,
       length: safeLength,
       width: safeWidth,
@@ -174,10 +174,13 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
         panelThickness: thicknessCm,
         bottomThickness: hardboard.thicknessMm / 10,
       });
-      addPieces(pieces, "Frente de cajón", drawers, nightstandStructure.drawerFrontWidthCm, nightstandStructure.drawerFrontHeightCm, melamine, { grainRequired: true });
-      addPieces(pieces, "Lateral izquierdo de cajón", drawers, drawerDimensions.sideLengthCm, nightstandStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: nightstandStructure.drawerSideHeightCm });
-      addPieces(pieces, "Lateral derecho de cajón", drawers, drawerDimensions.sideLengthCm, nightstandStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: nightstandStructure.drawerSideHeightCm });
-      addPieces(pieces, "Parte trasera de cajón", drawers, innerDrawerWidth, nightstandStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: nightstandStructure.drawerSideHeightCm, effectiveClearanceCm: drawerManufacturing.effectiveClearanceCm, clearanceDeltaCm: drawerManufacturing.clearanceDeltaCm });
+      nightstandStructure.drawerFrontHeightsCm.forEach((frontHeightCm, index) => {
+        const sideHeightCm = nightstandStructure.drawerSideHeightsCm[index];
+        addPieces(pieces, "Frente de cajón", 1, nightstandStructure.drawerFrontWidthCm, frontHeightCm, melamine, { grainRequired: true, idStart: index + 1 });
+        addPieces(pieces, "Lateral izquierdo de cajón", 1, drawerDimensions.sideLengthCm, sideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: sideHeightCm, idStart: index + 1 });
+        addPieces(pieces, "Lateral derecho de cajón", 1, drawerDimensions.sideLengthCm, sideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: sideHeightCm, idStart: index + 1 });
+        addPieces(pieces, "Parte trasera de cajón", 1, innerDrawerWidth, sideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: sideHeightCm, effectiveClearanceCm: drawerManufacturing.effectiveClearanceCm, clearanceDeltaCm: drawerManufacturing.clearanceDeltaCm, idStart: index + 1 });
+      });
       addPieces(pieces, "Base de cartón prensado del cajón", drawers, bottom.width, bottom.depth, hardboard, {
         location: bottom.location, installation: bottom.installation, mounting: bottom.mounting,
       });

@@ -92,6 +92,32 @@ export function deriveVerticalRatios({ annotations, dimensions }) {
   })).sort((a, b) => a.yRatio - b.yRatio || a.xRatio - b.xRatio || a.annotationId.localeCompare(b.annotationId));
 }
 
+export function deriveNightstandDrawerLayout({ annotations = [] }) {
+  const drawers = annotations.filter(({ type }) => type === "drawer").sort((a, b) => (a.y + a.height / 2) - (b.y + b.height / 2) || a.id.localeCompare(b.id));
+  if (!drawers.length) return null;
+  const centers = drawers.map(centerX);
+  const centerSpread = Math.max(...centers) - Math.min(...centers);
+  const widths = drawers.map(({ width }) => width);
+  const widthSpread = Math.max(...widths) - Math.min(...widths);
+  const gaps = [], overlaps = [];
+  for (let index = 1; index < drawers.length; index += 1) {
+    const separation = drawers[index].y - (drawers[index - 1].y + drawers[index - 1].height);
+    if (separation > 0) gaps.push(separation);
+    if (separation < 0) overlaps.push(-separation);
+  }
+  const maxGap = Math.max(0, ...gaps);
+  const maxOverlap = Math.max(0, ...overlaps);
+  const aligned = centerSpread <= 0.08 && widthSpread <= 0.12;
+  const valid = aligned && maxGap <= 0.08 && maxOverlap <= 0.03;
+  const totalHeight = drawers.reduce((sum, drawer) => sum + drawer.height, 0);
+  const ratios = valid ? drawers.map((drawer) => stable(drawer.height / totalHeight)) : [];
+  if (ratios.length) ratios[ratios.length - 1] = stable(1 - ratios.slice(0, -1).reduce((sum, ratio) => sum + ratio, 0));
+  const warning = !aligned ? "Los cajones no forman una única columna vertical coherente."
+    : maxOverlap > 0.03 ? "Los cajones se solapan excesivamente."
+      : maxGap > 0.08 ? "Existe un hueco vertical excesivo entre los cajones." : "";
+  return { valid, ratios, annotationIds: drawers.map(({ id }) => id), maxGap: stable(maxGap), maxOverlap: stable(maxOverlap), warning };
+}
+
 function assignElementsToSections({ elements, sections, tolerances }) {
   return elements.map((element) => {
     const source = element.annotation;
@@ -131,10 +157,11 @@ export function deriveDeskDrawerModule({ annotations = [], sectionAnalysis }) {
   return { valid: true, side: meanCenter < .5 ? "left" : "right", xRatio: stable(left), widthRatio: stable(widthRatio), source: "drawers" };
 }
 
-export function deriveFurnitureLayoutFromAnnotations({ annotations = [], dimensions = {}, tolerances = ANNOTATION_GEOMETRY_TOLERANCES }) {
+export function deriveFurnitureLayoutFromAnnotations({ annotations = [], dimensions = {}, tolerances = ANNOTATION_GEOMETRY_TOLERANCES, furnitureType }) {
   const validAnnotations = annotations.map((annotation) => normalizeAnnotation(annotation)).filter(Boolean);
   const sectionAnalysis = deriveSectionRatios({ annotations: validAnnotations, dimensions, tolerances });
-  const drawerModule = deriveDeskDrawerModule({ annotations: validAnnotations, sectionAnalysis });
+  const drawerModule = furnitureType === "nightstand" ? null : deriveDeskDrawerModule({ annotations: validAnnotations, sectionAnalysis });
+  const nightstandDrawerLayout = furnitureType === "nightstand" ? deriveNightstandDrawerLayout({ annotations: validAnnotations }) : null;
   const verticalLayout = deriveVerticalRatios({ annotations: validAnnotations, dimensions });
   const sections = sectionAnalysis.sectionLayout.map(({ annotationId }) => validAnnotations.find(({ id }) => id === annotationId));
   const elements = verticalLayout.map((layout) => ({ layout, annotation: validAnnotations.find(({ id }) => id === layout.annotationId) }));
@@ -147,6 +174,7 @@ export function deriveFurnitureLayoutFromAnnotations({ annotations = [], dimensi
   if (ambiguousCount) warnings.push(`${ambiguousCount === 1 ? "Un elemento cruza" : `${ambiguousCount} elementos cruzan`} límites de secciones y quedó como ambiguo.`);
   if (unassignedCount) warnings.push(`${unassignedCount === 1 ? "Un elemento quedó" : `${unassignedCount} elementos quedaron`} fuera de las secciones marcadas.`);
   if (drawerModule && !drawerModule.valid) warnings.push(drawerModule.warning);
+  if (nightstandDrawerLayout && !nightstandDrawerLayout.valid) warnings.push(nightstandDrawerLayout.warning);
   const quality = sectionAnalysis.quality === "invalid" ? "invalid" : warnings.length ? "warning" : "valid";
-  return { sectionLayout: sectionAnalysis.sectionLayout, elementAssignments, drawerModule, warnings, quality: drawerModule && !drawerModule.valid ? "invalid" : quality, geometry: { canNormalizeSections: sectionAnalysis.canNormalize, coverageRatio: sectionAnalysis.coverageRatio, maxGap: sectionAnalysis.maxGap ?? 0, maxOverlap: sectionAnalysis.maxOverlap ?? 0 } };
+  return { sectionLayout: sectionAnalysis.sectionLayout, elementAssignments, drawerModule, nightstandDrawerLayout, warnings, quality: (drawerModule && !drawerModule.valid) || (nightstandDrawerLayout && !nightstandDrawerLayout.valid) ? "invalid" : quality, geometry: { canNormalizeSections: sectionAnalysis.canNormalize, coverageRatio: sectionAnalysis.coverageRatio, maxGap: sectionAnalysis.maxGap ?? 0, maxOverlap: sectionAnalysis.maxOverlap ?? 0 } };
 }

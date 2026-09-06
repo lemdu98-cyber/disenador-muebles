@@ -46,7 +46,7 @@ test("las coordenadas son independientes de la resolución de pantalla", () => {
 });
 
 test("genera Mesa de Noche manual con dos cajones", () => {
-  const proposal = annotationsToFurnitureProposal({ detectedType: "nightstand", dimensions: { widthCm: 53, heightCm: 55, depthCm: 40 }, annotations: [mark("a", "drawer"), mark("b", "drawer")] });
+  const proposal = annotationsToFurnitureProposal({ detectedType: "nightstand", dimensions: { widthCm: 53, heightCm: 55, depthCm: 40 }, annotations: [mark("a", "drawer", .1, .2, .4, .25), mark("b", "drawer", .1, .46, .4, .25)] });
   assert.equal(proposal.provider, "manual");
   assert.equal(proposal.confidence, 1);
   assert.equal(proposal.structure.drawers, 2);

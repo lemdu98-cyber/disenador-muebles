@@ -25,7 +25,7 @@ import FurnitureImageImporter from "./components/FurnitureImageImporter";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
-import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE } from "./utils/nightstandStructure";
+import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE, equalDrawerHeightRatios } from "./utils/nightstandStructure";
 import { calculateDeskStructure, DEFAULT_DESK_CONFIG } from "./utils/deskStructure";
 import { getHardwareItems } from "./utils/hardware";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "./utils/tvStandStructure";
@@ -143,6 +143,7 @@ export default function App() {
     setDesignName("");
     setDesignMessage(null);
     setEdgeBanding({});
+    if (type === "nightstand") setNightstandStructureConfig((current) => ({ ...current, drawerHeightRatios: equalDrawerHeightRatios(2) }));
   };
   const updateDimension = (setter, minimum = 1) => (event) => setter(Math.max(minimum, Number(event.target.value) || minimum));
   const updateDrawerCount = (event) => {
@@ -151,6 +152,7 @@ export default function App() {
     const maximum = Math.max(drawerLimits.min, Math.min(drawerLimits.max, drawerCapacity?.maxAllowed ?? drawerLimits.max));
     const adjusted = Math.max(drawerLimits.min, Math.min(maximum, requested));
     setDrawers(adjusted);
+    if (isNightstand && adjusted !== drawers) setNightstandStructureConfig((current) => ({ ...current, drawerHeightRatios: equalDrawerHeightRatios(adjusted) }));
     setDrawerAdjustmentMessage(requested === adjusted ? "" : `La cantidad permitida con la configuración actual es de ${drawerLimits.min} a ${maximum} cajones.`);
   };
 
@@ -193,7 +195,7 @@ export default function App() {
     setDrawerSlideConfig({ ...DEFAULT_DRAWER_SLIDE_CONFIG, ...(useConstructiveDefaults ? {} : furniture.drawerSlideConfig) });
     setDrawerFrontConfig({ ...DEFAULT_DRAWER_FRONT_CONFIG, ...(useConstructiveDefaults ? {} : furniture.drawerFrontConfig) });
     setCatHouseConfig((current) => ({ ...current, ...(useConstructiveDefaults ? {} : furniture.catHouseConfig) }));
-    setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...(useConstructiveDefaults ? {} : furniture.nightstandStructureConfig) });
+    setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...(useConstructiveDefaults ? {} : furniture.nightstandStructureConfig), ...(furniture.nightstandStructureConfig?.drawerHeightRatios ? { drawerHeightRatios: furniture.nightstandStructureConfig.drawerHeightRatios } : {}) });
     setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig });
     setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig });
     setWardrobeConfig({ ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig });
@@ -216,7 +218,7 @@ export default function App() {
         shelves: normalized.quantities.shelves ?? 0,
         drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG,
         drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG,
-        nightstandStructureConfig: DEFAULT_NIGHTSTAND_STRUCTURE,
+        nightstandStructureConfig: { ...DEFAULT_NIGHTSTAND_STRUCTURE, ...normalized.furniture.nightstandStructureConfig },
         deskConfig: { ...DEFAULT_DESK_CONFIG, ...normalized.furniture.deskConfig },
         tvStandConfig: { ...DEFAULT_TV_STAND_CONFIG, ...normalized.furniture.tvStandConfig },
         wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, ...normalized.furniture.wardrobeConfig },
@@ -226,7 +228,7 @@ export default function App() {
       const bottomThicknessCm = materialConfigs.hardboard.thicknessMm / 10;
       const candidateDrawerDimensions = calculateDrawerSlideDimensions({ ...candidate, thicknessCm });
       let geometryError = candidateDrawerDimensions.hasEnoughDepth ? "" : "No existe profundidad suficiente para instalar la corredera seleccionada.";
-      if (!geometryError && candidate.furnitureType === "nightstand") geometryError = calculateNightstandStructure({ ...candidate, thicknessCm, drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG, structureConfig: DEFAULT_NIGHTSTAND_STRUCTURE }).error;
+      if (!geometryError && candidate.furnitureType === "nightstand") geometryError = calculateNightstandStructure({ ...candidate, thicknessCm, drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG, structureConfig: candidate.nightstandStructureConfig }).error;
       if (!geometryError && candidate.furnitureType === "desk") geometryError = calculateDeskStructure({ ...candidate, thicknessCm, bottomThicknessCm, drawerDimensions: candidateDrawerDimensions, deskConfig: DEFAULT_DESK_CONFIG }).error;
       if (!geometryError && candidate.furnitureType === "tvStand") geometryError = calculateTvStandStructure({ ...candidate, thicknessCm, tvStandConfig: DEFAULT_TV_STAND_CONFIG }).error;
       if (!geometryError && candidate.furnitureType === "wardrobe") geometryError = calculateWardrobeStructure({ ...candidate, thicknessCm, bottomThicknessCm, drawerDimensions: candidateDrawerDimensions, wardrobeConfig: candidate.wardrobeConfig }).error;

@@ -6,6 +6,7 @@ import FurnitureImageAnnotator from "./FurnitureImageAnnotator.jsx";
 import { getWardrobeSectionGeometry, normalizeWardrobeSectionWidthRatios } from "../utils/wardrobeStructure.js";
 import { getDeskSectionGeometry } from "../utils/deskStructure.js";
 import { getTvStandSectionGeometry, normalizeTvStandSectionWidthRatios } from "../utils/tvStandStructure.js";
+import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE, normalizeDrawerHeightRatios } from "../utils/nightstandStructure.js";
 
 const LABELS = { unknown: "No reconocido", nightstand: "Mesa de noche", desk: "Escritorio", tvStand: "Mueble TV", catHouse: "Casa para Gatos", wardrobe: "Ropero" };
 const initialDimensions = { widthCm: "", heightCm: "", depthCm: "" };
@@ -74,6 +75,11 @@ export default function FurnitureImageImporter({ open, onCancel, onApply, valida
   })() : null;
   const deskModuleSummary = proposal?.detectedType === "desk" && proposal.structure.drawerModule?.valid ? getDeskSectionGeometry({ widthCm: Number(proposal.dimensions.widthCm), thicknessCm: melamineThicknessMm / 10, deskConfig: { drawerModuleSide: proposal.structure.drawerModule.side, drawerModuleWidthRatio: proposal.structure.drawerModule.widthRatio } }) : null;
   const tvStandRatioSummary = proposal?.detectedType === "tvStand" && proposal.structure.sectionLayout?.length === 2 && proposal.structure.layoutCanNormalizeSections === true ? (() => { const normalized = normalizeTvStandSectionWidthRatios(proposal.structure.sectionLayout.map(({ widthRatio }) => widthRatio)); return normalized.valid ? getTvStandSectionGeometry({ widthCm: Number(proposal.dimensions.widthCm), thicknessCm: melamineThicknessMm / 10, sectionWidthRatios: normalized.ratios }) : null; })() : null;
+  const nightstandRatioSummary = proposal?.detectedType === "nightstand" && proposal.structure.drawerLayout?.valid ? (() => {
+    const drawerCount = Number(proposal.structure.drawers);
+    const normalized = normalizeDrawerHeightRatios(proposal.structure.drawerLayout.ratios, drawerCount);
+    return normalized.valid ? calculateNightstandStructure({ widthCm: Number(proposal.dimensions.widthCm), heightCm: Number(proposal.dimensions.heightCm), depthCm: Number(proposal.dimensions.depthCm), thicknessCm: melamineThicknessMm / 10, drawers: drawerCount, drawerFrontConfig: { type: "overlay", gapMm: 2 }, structureConfig: { ...DEFAULT_NIGHTSTAND_STRUCTURE, drawerHeightRatios: normalized.ratios } }) : null;
+  })() : null;
   return <div className="image-import-overlay" role="dialog" aria-modal="true" aria-label="Crear desde imagen">
     <section className={`image-import-dialog ${status === "annotating" ? "annotating" : ""}`}>
       <div className="image-import-heading"><div>{ANALYSIS_PROVIDER === "mock" && <p className="eyebrow">ANÁLISIS SIMULADO · DESARROLLO</p>}<h2>{status === "annotating" ? "Editar estructura en la imagen" : proposal ? "Revisar diseño" : "Crear desde imagen"}</h2></div><button type="button" onClick={cancel}>Cancelar</button></div>
@@ -98,6 +104,7 @@ export default function FurnitureImageImporter({ open, onCancel, onApply, valida
         {wardrobeRatioSummary && <section className="image-ratio-summary"><b>Distribución que se aplicará</b>{wardrobeRatioSummary.sectionWidthRatios.map((ratio, index) => <span key={index}>Cuerpo {index + 1}: {(ratio * 100).toFixed(1)} % · aprox. {wardrobeRatioSummary.sectionWidthsCm[index].toFixed(1)} cm interiores</span>)}<p>La proporción visual fue estimada desde la imagen. Verifica las divisiones antes de fabricar.</p></section>}
         {deskModuleSummary && <section className="image-ratio-summary"><b>Módulo de cajones que se aplicará</b><span>Lado: {deskModuleSummary.drawerModuleSide === "left" ? "Izquierdo" : "Derecho"}</span><span>Ancho visual: {(deskModuleSummary.drawerModuleWidthRatio * 100).toFixed(1)} %</span><span>Ancho real aproximado: {deskModuleSummary.moduleWidthCm.toFixed(1)} cm</span><p>La posición y proporción se estimaron visualmente. Verifica las medidas antes de fabricar.</p></section>}
         {tvStandRatioSummary && <section className="image-ratio-summary"><b>Distribución que se aplicará</b><span>Cuerpo izquierdo: {(tvStandRatioSummary.sectionWidthRatios[0] * 100).toFixed(1)} % · {tvStandRatioSummary.sectionWidthsCm[0].toFixed(1)} cm</span><span>Cuerpo derecho: {(tvStandRatioSummary.sectionWidthRatios[1] * 100).toFixed(1)} % · {tvStandRatioSummary.sectionWidthsCm[1].toFixed(1)} cm</span><p>La proporción se estimó visualmente. Verifica la división antes de fabricar.</p></section>}
+        {nightstandRatioSummary && <section className="image-ratio-summary"><b>Distribución de frentes</b>{nightstandRatioSummary.config.drawerHeightRatios.map((ratio, index) => <span key={index}>Cajón {index + 1}: {(ratio * 100).toFixed(1)} % · frente {nightstandRatioSummary.drawerFrontHeightsCm[index].toFixed(1)} cm</span>)}<p>Las proporciones se estimaron visualmente. Verifica las alturas antes de fabricar.</p></section>}
         {proposalErrors.map((message) => <p className="configuration-warning" key={message}>{message}</p>)}
         <div className="review-actions">{proposal.provider === "manual" && <button type="button" onClick={() => { setStatus("annotating"); setError(""); }}>Volver a editar marcas</button>}<button type="button" className="primary-action" disabled={status === "applying" || proposal.detectedType === "unknown" || proposalErrors.length > 0} onClick={apply}>Aplicar diseño</button></div>
       </>}

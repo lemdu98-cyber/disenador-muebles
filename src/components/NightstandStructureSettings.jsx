@@ -1,7 +1,19 @@
 export default function NightstandStructureSettings({ config, onChange, structure }) {
   const update = (patch) => onChange({ ...config, ...patch });
   const numericUpdate = (key) => (event) => update({ [key]: Math.max(0, Number(event.target.value) || 0) });
+  const updateRatio = (index, percent) => {
+    const current = structure.config.drawerHeightRatios;
+    const selected = Math.max(0.05, Math.min(0.95, Number(percent) / 100));
+    const otherTotal = current.reduce((sum, ratio, currentIndex) => currentIndex === index ? sum : sum + ratio, 0);
+    const remaining = 1 - selected;
+    update({ drawerHeightRatios: current.map((ratio, currentIndex) => currentIndex === index ? selected : otherTotal > 0 ? ratio / otherTotal * remaining : remaining / (current.length - 1)) });
+  };
   return <section className="configuration">
+    <h2>Distribución vertical de frentes</h2>
+    {structure.config.drawerHeightRatios.map((ratio, index) => <label key={index}>Cajón {index + 1}
+      <input type="range" min="5" max="95" step="1" value={Math.round(ratio * 100)} onChange={(event) => updateRatio(index, event.target.value)} />
+      <span className="setting-help">{Math.round(ratio * 100)} % → frente {structure.drawerFrontHeightsCm[index]?.toLocaleString("es-BO", { maximumFractionDigits: 1 })} cm · caja {structure.drawerSideHeightsCm[index]?.toLocaleString("es-BO", { maximumFractionDigits: 1 })} cm</span>
+    </label>)}
     <h2>Travesaños estructurales</h2>
     <label className="check-setting"><input type="checkbox" checked={config.rearEnabled} onChange={(event) => update({ rearEnabled: event.target.checked })} />Activar travesaño trasero</label>
     <label>Altura del travesaño trasero (cm)<input type="number" min="1" step="0.1" value={config.rearHeightCm} disabled={!config.rearEnabled} onChange={numericUpdate("rearHeightCm")} /></label>

@@ -39,11 +39,12 @@ export function annotationsToFurnitureProposal({ detectedType, dimensions, annot
   if (!PROPOSAL_TYPES.includes(detectedType) || detectedType === "unknown") throw new Error("Selecciona un tipo de mueble compatible.");
   if (![dimensions?.widthCm, dimensions?.heightCm, dimensions?.depthCm].every((value) => Number(value) > 0)) throw new Error("Introduce ancho, alto y fondo.");
   const validAnnotations = annotations.map((annotation) => normalizeAnnotation(annotation)).filter(Boolean);
-  const layout = deriveFurnitureLayoutFromAnnotations({ annotations: validAnnotations, dimensions });
+  const layout = deriveFurnitureLayoutFromAnnotations({ annotations: validAnnotations, dimensions, furnitureType: detectedType });
   const structure = countAnnotations(validAnnotations);
   if (layout.sectionLayout.length) structure.sectionLayout = layout.sectionLayout;
   if (layout.elementAssignments.length) structure.elementLayout = layout.elementAssignments;
   if (layout.drawerModule) structure.drawerModule = layout.drawerModule;
+  if (layout.nightstandDrawerLayout) structure.drawerLayout = layout.nightstandDrawerLayout;
   if (layout.sectionLayout.length || layout.elementAssignments.length) structure.layoutQuality = layout.quality;
   if (layout.sectionLayout.length) structure.layoutCanNormalizeSections = layout.geometry.canNormalizeSections;
   return {

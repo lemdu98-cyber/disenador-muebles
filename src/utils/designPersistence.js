@@ -3,6 +3,7 @@ import { sanitizeEdgeBandingConfig } from "./edgeBanding.js";
 import { DEFAULT_DESK_CONFIG, getDeskSectionGeometry } from "./deskStructure.js";
 import { DEFAULT_WARDROBE_CONFIG, normalizeWardrobeSectionWidthRatios } from "./wardrobeStructure.js";
 import { DEFAULT_TV_STAND_CONFIG, normalizeTvStandSectionWidthRatios } from "./tvStandStructure.js";
+import { DEFAULT_NIGHTSTAND_STRUCTURE, normalizeDrawerHeightRatios } from "./nightstandStructure.js";
 
 const VISUAL_ONLY_KEYS = new Set([
   "showOpenDrawers",
@@ -50,6 +51,11 @@ export function serializeDesignConfig(state) {
     const normalized = normalizeTvStandSectionWidthRatios(furniture.tvStandConfig?.sectionWidthRatios ?? DEFAULT_TV_STAND_CONFIG.sectionWidthRatios);
     furniture.tvStandConfig = { ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig, sectionWidthRatios: normalized.ratios };
   }
+  if (state.furnitureType === "nightstand") {
+    const drawerCount = Number(state.drawers ?? 0);
+    const normalized = normalizeDrawerHeightRatios(furniture.nightstandStructureConfig?.drawerHeightRatios, drawerCount);
+    furniture.nightstandStructureConfig = { ...DEFAULT_NIGHTSTAND_STRUCTURE, ...furniture.nightstandStructureConfig, drawerHeightRatios: normalized.ratios };
+  }
   return omitVisualState({
     dimensions: {
       widthCm: state.widthCm,
@@ -84,6 +90,11 @@ export function deserializeDesignConfig(furnitureType, config) {
   if (furnitureType === "tvStand") {
     const normalized = normalizeTvStandSectionWidthRatios(furniture.tvStandConfig?.sectionWidthRatios ?? DEFAULT_TV_STAND_CONFIG.sectionWidthRatios);
     furniture.tvStandConfig = { ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig, sectionWidthRatios: normalized.ratios };
+  }
+  if (furnitureType === "nightstand") {
+    const drawerCount = Number(config.quantities?.drawers ?? 0);
+    const normalized = normalizeDrawerHeightRatios(furniture.nightstandStructureConfig?.drawerHeightRatios, drawerCount);
+    furniture.nightstandStructureConfig = { ...DEFAULT_NIGHTSTAND_STRUCTURE, ...furniture.nightstandStructureConfig, drawerHeightRatios: normalized.ratios };
   }
   return {
     dimensions: config.dimensions,
