@@ -18,6 +18,7 @@ export function validateFurnitureProposal(proposal) {
   if (limits && (!Number.isInteger(drawers) || drawers < limits.min || drawers > limits.max)) {
     errors.push(`La cantidad de cajones debe estar entre ${limits.min} y ${limits.max}.`);
   }
+  if (proposal.detectedType === "desk" && proposal.structure.drawerModule && !proposal.structure.drawerModule.valid) errors.push(proposal.structure.drawerModule.warning || "No se pudo determinar una única cajonera.");
   if (proposal.detectedType === "wardrobe") {
     const shelves = Number(proposal.structure.shelves);
     if (Number(proposal.structure.sections) !== 3) errors.push("El ropero actual utiliza exactamente 3 cuerpos.");
@@ -32,7 +33,7 @@ export function validateFurnitureProposal(proposal) {
   }
   const unsupported = {
     nightstand: [["doors", "La Mesa de Noche actual no utiliza puertas."], ["shelves", "La Mesa de Noche actual no utiliza repisas."], ["sections", "La Mesa de Noche actual no utiliza cuerpos marcados."]],
-    desk: [["doors", "El Escritorio actual no utiliza puertas."], ["shelves", "El Escritorio actual no utiliza repisas."], ["sections", "El Escritorio actual no utiliza cuerpos marcados."]],
+    desk: [["doors", "El Escritorio actual no utiliza puertas."], ["shelves", "El Escritorio actual no utiliza repisas."]],
     tvStand: [["drawers", "El Mueble TV actual no utiliza cajones."], ["doors", "El Mueble TV actual no utiliza puertas."], ["shelves", "El Mueble TV actual no utiliza repisas marcadas."], ["sections", "El Mueble TV actual no utiliza cuerpos marcados."]],
     catHouse: [["drawers", "La Casa para Gatos actual no utiliza cajones."], ["doors", "La Casa para Gatos actual no utiliza puertas."], ["shelves", "La Casa para Gatos actual no utiliza repisas."], ["sections", "La Casa para Gatos actual no utiliza cuerpos marcados."]],
   };
@@ -52,6 +53,10 @@ export function proposalToNormalizedConfig(proposal) {
     quantities.shelves = Number(proposal.structure.shelves);
   }
   const furniture = {};
+  if (proposal.detectedType === "desk" && proposal.structure.drawerModule?.valid) furniture.deskConfig = {
+    drawerModuleSide: proposal.structure.drawerModule.side,
+    drawerModuleWidthRatio: proposal.structure.drawerModule.widthRatio,
+  };
   if (proposal.detectedType === "wardrobe" && proposal.structure.layoutCanNormalizeSections === true && proposal.structure.sectionLayout?.length === 3) {
     const normalizedRatios = normalizeWardrobeSectionWidthRatios(proposal.structure.sectionLayout.map(({ widthRatio }) => widthRatio));
     if (normalizedRatios.valid) furniture.wardrobeConfig = { sectionWidthRatios: normalizedRatios.ratios };

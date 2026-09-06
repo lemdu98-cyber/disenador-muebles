@@ -95,3 +95,12 @@ test("persiste ratios asimétricos 20/35/45 junto al canteado", () => {
   assert.deepEqual(restored.furniture.wardrobeConfig.sectionWidthRatios, [.2, .35, .45]);
   assert.deepEqual(restored.edgeBanding, edgeBanding);
 });
+
+test("persiste lado y ratio de cajonera y migra el formato absoluto anterior", () => {
+  const config = serializeDesignConfig({ ...state, furnitureType: "desk", widthCm: 140, deskConfig: { drawerModuleSide: "right", drawerModuleWidthRatio: .34 } });
+  assert.equal(deserializeDesignConfig("desk", config).furniture.deskConfig.drawerModuleWidthRatio, .34);
+  assert.equal(deserializeDesignConfig("desk", config).furniture.deskConfig.drawerModuleSide, "right");
+  const legacy = deserializeDesignConfig("desk", { dimensions: { widthCm: 160 }, quantities: { drawers: 3 }, furniture: { deskConfig: { drawerPosition: "left", drawerModuleWidthCm: 40 } }, materials: { melamineThicknessMm: 15 } });
+  assert.equal(legacy.furniture.deskConfig.drawerModuleSide, "left");
+  assert.equal(legacy.furniture.deskConfig.drawerModuleWidthRatio, 37 / 155.5);
+});

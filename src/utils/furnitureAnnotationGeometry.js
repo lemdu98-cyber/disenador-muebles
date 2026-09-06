@@ -108,9 +108,33 @@ function assignElementsToSections({ elements, sections, tolerances }) {
   }).sort((a, b) => (a.sectionIndex ?? Number.MAX_SAFE_INTEGER) - (b.sectionIndex ?? Number.MAX_SAFE_INTEGER) || a.yRatio - b.yRatio || a.xRatio - b.xRatio || a.annotationId.localeCompare(b.annotationId));
 }
 
+export function deriveDeskDrawerModule({ annotations = [], sectionAnalysis }) {
+  const drawers = annotations.filter(({ type }) => type === "drawer");
+  if (!drawers.length) return null;
+  const left = Math.min(...drawers.map(({ x }) => x));
+  const right = Math.max(...drawers.map(horizontalEnd));
+  const centers = drawers.map(centerX);
+  const meanCenter = centers.reduce((sum, value) => sum + value, 0) / centers.length;
+  const centerSpread = Math.max(...centers) - Math.min(...centers);
+  const averageWidth = drawers.reduce((sum, item) => sum + item.width, 0) / drawers.length;
+  if (centerSpread > Math.max(.08, averageWidth * .4) || (Math.min(...centers) < .42 && Math.max(...centers) > .58)) {
+    return { valid: false, warning: "Los cajones no forman una única columna horizontal coherente." };
+  }
+  const sections = sectionAnalysis?.sectionLayout || [];
+  if (sections.length === 2 && sectionAnalysis.canNormalize) {
+    const target = sections.find((section) => meanCenter >= section.xRatio && meanCenter <= section.xRatio + section.visualWidthRatio);
+    if (!target || left < target.xRatio - .02 || right > target.xRatio + target.visualWidthRatio + .02) return { valid: false, warning: "Los cajones no coinciden claramente con una de las dos secciones." };
+    return { valid: true, side: target.index === 0 ? "left" : "right", xRatio: target.normalizedXRatio, widthRatio: target.widthRatio, source: "sections" };
+  }
+  const widthRatio = right - left;
+  if (widthRatio <= 0 || left < 0 || right > 1 || (meanCenter > .42 && meanCenter < .58)) return { valid: false, warning: "La posición de la columna de cajones es ambigua." };
+  return { valid: true, side: meanCenter < .5 ? "left" : "right", xRatio: stable(left), widthRatio: stable(widthRatio), source: "drawers" };
+}
+
 export function deriveFurnitureLayoutFromAnnotations({ annotations = [], dimensions = {}, tolerances = ANNOTATION_GEOMETRY_TOLERANCES }) {
   const validAnnotations = annotations.map((annotation) => normalizeAnnotation(annotation)).filter(Boolean);
   const sectionAnalysis = deriveSectionRatios({ annotations: validAnnotations, dimensions, tolerances });
+  const drawerModule = deriveDeskDrawerModule({ annotations: validAnnotations, sectionAnalysis });
   const verticalLayout = deriveVerticalRatios({ annotations: validAnnotations, dimensions });
   const sections = sectionAnalysis.sectionLayout.map(({ annotationId }) => validAnnotations.find(({ id }) => id === annotationId));
   const elements = verticalLayout.map((layout) => ({ layout, annotation: validAnnotations.find(({ id }) => id === layout.annotationId) }));
@@ -122,6 +146,7 @@ export function deriveFurnitureLayoutFromAnnotations({ annotations = [], dimensi
   const warnings = [...sectionAnalysis.warnings];
   if (ambiguousCount) warnings.push(`${ambiguousCount === 1 ? "Un elemento cruza" : `${ambiguousCount} elementos cruzan`} límites de secciones y quedó como ambiguo.`);
   if (unassignedCount) warnings.push(`${unassignedCount === 1 ? "Un elemento quedó" : `${unassignedCount} elementos quedaron`} fuera de las secciones marcadas.`);
+  if (drawerModule && !drawerModule.valid) warnings.push(drawerModule.warning);
   const quality = sectionAnalysis.quality === "invalid" ? "invalid" : warnings.length ? "warning" : "valid";
-  return { sectionLayout: sectionAnalysis.sectionLayout, elementAssignments, warnings, quality, geometry: { canNormalizeSections: sectionAnalysis.canNormalize, coverageRatio: sectionAnalysis.coverageRatio, maxGap: sectionAnalysis.maxGap ?? 0, maxOverlap: sectionAnalysis.maxOverlap ?? 0 } };
+  return { sectionLayout: sectionAnalysis.sectionLayout, elementAssignments, drawerModule, warnings, quality: drawerModule && !drawerModule.valid ? "invalid" : quality, geometry: { canNormalizeSections: sectionAnalysis.canNormalize, coverageRatio: sectionAnalysis.coverageRatio, maxGap: sectionAnalysis.maxGap ?? 0, maxOverlap: sectionAnalysis.maxOverlap ?? 0 } };
 }

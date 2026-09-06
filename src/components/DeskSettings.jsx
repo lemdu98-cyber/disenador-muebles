@@ -5,12 +5,12 @@ export default function DeskSettings({ config, onChange, structure }) {
   const numericUpdate = (key) => (event) => update({ [key]: Math.max(0, Number(event.target.value) || 0) });
   return <section className="configuration">
     <h2>Módulo estructural de cajones</h2>
-    <label>Posición de cajones<select value={config.drawerPosition} onChange={(event) => update({ drawerPosition: event.target.value })}>
+    <label>Posición de cajonera<select value={structure.config.drawerModuleSide} onChange={(event) => update({ drawerModuleSide: event.target.value })}>
       <option value="right">Derecha</option>
       <option value="left">Izquierda</option>
     </select></label>
     <div className="field-grid">
-      <label>Ancho módulo de cajones (cm)<input type="number" min="1" step="0.1" value={config.drawerModuleWidthCm} onChange={numericUpdate("drawerModuleWidthCm")} /></label>
+      <label>Ancho de cajonera (%)<input type="range" min="10" max="70" step="1" value={Math.round(structure.config.drawerModuleWidthRatio * 100)} onChange={(event) => update({ drawerModuleWidthRatio: Number(event.target.value) / 100 })} /><span className="setting-help">{Math.round(structure.config.drawerModuleWidthRatio * 100)} % → {cm(structure.moduleWidthCm)} cm exteriores</span></label>
       <label>Separación entre frentes (cm)<input type="number" min="0.1" step="0.1" value={config.drawerFrontGapCm} onChange={numericUpdate("drawerFrontGapCm")} /></label>
       <label>Altura del travesaño trasero (cm)<input type="number" min="1" step="0.1" value={config.rearCrossbarHeightCm} onChange={numericUpdate("rearCrossbarHeightCm")} /></label>
     </div>

@@ -1,5 +1,7 @@
 export const DESIGN_SCHEMA_VERSION = 1;
 import { sanitizeEdgeBandingConfig } from "./edgeBanding.js";
+import { DEFAULT_DESK_CONFIG, getDeskSectionGeometry } from "./deskStructure.js";
+import { DEFAULT_WARDROBE_CONFIG, normalizeWardrobeSectionWidthRatios } from "./wardrobeStructure.js";
 
 const VISUAL_ONLY_KEYS = new Set([
   "showOpenDrawers",
@@ -38,6 +40,11 @@ export function serializeDesignConfig(state) {
     const normalized = normalizeWardrobeSectionWidthRatios(furniture.wardrobeConfig?.sectionWidthRatios ?? DEFAULT_WARDROBE_CONFIG.sectionWidthRatios);
     furniture.wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig, sectionWidthRatios: normalized.ratios };
   }
+  if (state.furnitureType === "desk") {
+    const geometry = getDeskSectionGeometry({ widthCm: state.widthCm, thicknessCm: (state.materialConfigs?.melamine?.thicknessMm ?? 15) / 10, deskConfig: furniture.deskConfig });
+    furniture.deskConfig = { ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig, drawerModuleSide: geometry.drawerModuleSide, drawerModuleWidthRatio: geometry.drawerModuleWidthRatio };
+    delete furniture.deskConfig.drawerPosition; delete furniture.deskConfig.drawerModuleWidthCm;
+  }
   return omitVisualState({
     dimensions: {
       widthCm: state.widthCm,
@@ -63,6 +70,12 @@ export function deserializeDesignConfig(furnitureType, config) {
     const normalized = normalizeWardrobeSectionWidthRatios(furniture.wardrobeConfig?.sectionWidthRatios ?? DEFAULT_WARDROBE_CONFIG.sectionWidthRatios);
     furniture.wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig, sectionWidthRatios: normalized.ratios };
   }
+  if (furnitureType === "desk") {
+    const thicknessMm = oldMaterials.melamineThicknessMm ?? oldMaterials.melamine?.thicknessMm ?? 15;
+    const geometry = getDeskSectionGeometry({ widthCm: config.dimensions.widthCm, thicknessCm: thicknessMm / 10, deskConfig: furniture.deskConfig });
+    furniture.deskConfig = { ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig, drawerModuleSide: geometry.drawerModuleSide, drawerModuleWidthRatio: geometry.drawerModuleWidthRatio };
+    delete furniture.deskConfig.drawerPosition; delete furniture.deskConfig.drawerModuleWidthCm;
+  }
   return {
     dimensions: config.dimensions,
     quantities: pick(config.quantities || {}, fields.quantities),
@@ -84,4 +97,3 @@ export function assertSupportedDesign(design) {
   }
   return design;
 }
-import { DEFAULT_WARDROBE_CONFIG, normalizeWardrobeSectionWidthRatios } from "./wardrobeStructure.js";

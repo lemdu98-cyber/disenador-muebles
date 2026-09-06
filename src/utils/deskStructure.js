@@ -1,8 +1,12 @@
 import { DESK_DRAWER_LIMITS, MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "./drawerLimits.js";
+import { snapDistributedDimensions } from "./manufacturingGrid.js";
+
+export const DESK_MINIMUM_LEGROOM_WIDTH_CM = 60;
+export const DEFAULT_DESK_DRAWER_MODULE_RATIO = 37 / 135.5;
 
 export const DEFAULT_DESK_CONFIG = {
-  drawerPosition: "right",
-  drawerModuleWidthCm: 40,
+  drawerModuleSide: "right",
+  drawerModuleWidthRatio: DEFAULT_DESK_DRAWER_MODULE_RATIO,
   drawerFrontGapCm: 0.3,
   rearCrossbarHeightCm: 10,
   moduleBraceHeightCm: 6,
@@ -12,18 +16,38 @@ export const DEFAULT_DESK_CONFIG = {
 const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const nonNegative = (value, fallback = 0) => Math.max(0, numberOr(value, fallback));
 
+export function getDeskSectionGeometry({ widthCm, thicknessCm, deskConfig = {} }) {
+  const side = (deskConfig.drawerModuleSide ?? deskConfig.drawerPosition) === "left" ? "left" : "right";
+  const totalOpeningWidthCm = Math.max(0, numberOr(widthCm) - numberOr(thicknessCm) * 3);
+  const legacyOpeningCm = Math.max(0, nonNegative(deskConfig.drawerModuleWidthCm, 40) - numberOr(thicknessCm) * 2);
+  const requestedRatio = deskConfig.drawerModuleWidthRatio != null ? Number(deskConfig.drawerModuleWidthRatio)
+    : deskConfig.drawerModuleWidthCm != null ? legacyOpeningCm / totalOpeningWidthCm : DEFAULT_DESK_DRAWER_MODULE_RATIO;
+  const ratioValid = Number.isFinite(requestedRatio) && requestedRatio > 0 && requestedRatio < 1;
+  const ratio = ratioValid ? requestedRatio : DEFAULT_DESK_DRAWER_MODULE_RATIO;
+  const [drawerOpeningWidthCm, freeOpeningWidthCm] = snapDistributedDimensions([totalOpeningWidthCm * ratio, totalOpeningWidthCm * (1 - ratio)], totalOpeningWidthCm);
+  const moduleWidthCm = drawerOpeningWidthCm + numberOr(thicknessCm) * 2;
+  const sign = side === "left" ? -1 : 1;
+  const drawerOpeningCenterXCm = sign * (numberOr(widthCm) / 2 - numberOr(thicknessCm) - drawerOpeningWidthCm / 2);
+  const freeOpeningCenterXCm = -sign * (numberOr(widthCm) / 2 - numberOr(thicknessCm) - freeOpeningWidthCm / 2);
+  const dividerCenterXCm = sign * (numberOr(widthCm) / 2 - numberOr(thicknessCm) - drawerOpeningWidthCm - numberOr(thicknessCm) / 2);
+  return { drawerModuleSide: side, drawerModuleWidthRatio: ratio, ratioValid, totalOpeningWidthCm, moduleWidthCm, drawerOpeningWidthCm, freeOpeningWidthCm, legroomWidthCm: freeOpeningWidthCm, drawerOpeningCenterXCm, freeOpeningCenterXCm, moduleCenterXCm: drawerOpeningCenterXCm, dividerCenterXCm };
+}
+
 export function calculateDeskStructure({
   widthCm, heightCm, depthCm, thicknessCm, bottomThicknessCm = 0.3, drawers, drawerDimensions, deskConfig,
 }) {
   const config = { ...DEFAULT_DESK_CONFIG, ...deskConfig };
   const drawerCount = Math.max(0, Math.floor(nonNegative(drawers)));
-  const moduleWidthCm = nonNegative(config.drawerModuleWidthCm, 40);
+  const sectionGeometry = getDeskSectionGeometry({ widthCm, thicknessCm, deskConfig: config });
+  config.drawerModuleSide = sectionGeometry.drawerModuleSide;
+  config.drawerModuleWidthRatio = sectionGeometry.drawerModuleWidthRatio;
+  const moduleWidthCm = sectionGeometry.moduleWidthCm;
   const frontGapCm = nonNegative(config.drawerFrontGapCm, 0.3);
   const rearCrossbarHeightCm = nonNegative(config.rearCrossbarHeightCm, 10);
   const moduleBraceHeightCm = nonNegative(config.moduleBraceHeightCm, 6);
   const legHeightCm = nonNegative(heightCm - thicknessCm);
-  const drawerOpeningWidthCm = moduleWidthCm - thicknessCm * 2;
-  const legroomWidthCm = widthCm - moduleWidthCm - thicknessCm;
+  const drawerOpeningWidthCm = sectionGeometry.drawerOpeningWidthCm;
+  const legroomWidthCm = sectionGeometry.legroomWidthCm;
   const legroomHeightCm = legHeightCm;
   const topClearanceCm = 0.5;
   const braceClearanceCm = 0.5;
@@ -32,9 +56,8 @@ export function calculateDeskStructure({
     ? (drawerRegionHeightCm - frontGapCm * (drawerCount - 1)) / drawerCount
     : 0;
   const drawerSideHeightCm = drawerFrontHeightCm - 2;
-  const moduleSign = config.drawerPosition === "left" ? -1 : 1;
-  const moduleCenterXCm = moduleSign * (widthCm / 2 - moduleWidthCm / 2);
-  const dividerCenterXCm = moduleSign * (widthCm / 2 - moduleWidthCm + thicknessCm / 2);
+  const moduleCenterXCm = sectionGeometry.moduleCenterXCm;
+  const dividerCenterXCm = sectionGeometry.dividerCenterXCm;
   const drawerDepthCm = drawerDimensions?.sideLengthCm ?? 0;
   const drawerClosedCenterZCm = depthCm / 2 - drawerDepthCm / 2;
   const drawerOpenOffsetCm = calculateDrawerOpenOffsetCm(drawerDepthCm, config.showOpenDrawers);
@@ -62,12 +85,13 @@ export function calculateDeskStructure({
 
   const minimumModuleWidthCm = thicknessCm * 2 + (drawerDimensions?.totalClearanceCm ?? 0) + 12;
   const errors = [];
+  if (!sectionGeometry.ratioValid) errors.push("La proporción del módulo de cajones debe ser mayor que 0 % y menor que 100 %.");
   if (drawerCount < DESK_DRAWER_LIMITS.min || drawerCount > DESK_DRAWER_LIMITS.max) errors.push(`El Escritorio admite entre ${DESK_DRAWER_LIMITS.min} y ${DESK_DRAWER_LIMITS.max} cajones.`);
   if (widthCm <= 0 || heightCm <= thicknessCm || depthCm <= thicknessCm * 2 || thicknessCm <= 0) errors.push("Las dimensiones estructurales deben ser mayores que cero.");
   if (drawerCount && moduleWidthCm < minimumModuleWidthCm) errors.push(`El módulo de cajones debe medir al menos ${minimumModuleWidthCm.toFixed(1)} cm para alojar caja y correderas.`);
-  if (drawerCount && moduleWidthCm > widthCm - thicknessCm - 60) errors.push("El módulo de cajones es demasiado ancho para conservar una zona cómoda para la silla.");
+  if (drawerCount && legroomWidthCm < DESK_MINIMUM_LEGROOM_WIDTH_CM) errors.push("El módulo de cajones es demasiado ancho para conservar una zona cómoda para la silla.");
   if (drawerCount && drawerOpeningWidthCm <= (drawerDimensions?.totalClearanceCm ?? 0)) errors.push("El módulo es demasiado angosto para las holguras laterales de las correderas.");
-  if (legroomWidthCm < 60) errors.push(`El ancho libre para las piernas es ${Math.max(0, legroomWidthCm).toFixed(1)} cm; se requieren al menos 60 cm.`);
+  if (legroomWidthCm < DESK_MINIMUM_LEGROOM_WIDTH_CM) errors.push(`El ancho libre para las piernas es ${Math.max(0, legroomWidthCm).toFixed(1)} cm; se requieren al menos ${DESK_MINIMUM_LEGROOM_WIDTH_CM} cm.`);
   if (legroomHeightCm < 60) errors.push(`La altura libre para las piernas es ${Math.max(0, legroomHeightCm).toFixed(1)} cm; se requieren al menos 60 cm.`);
   if (drawerCount && drawerFrontHeightCm <= 0) errors.push("No existe altura suficiente para distribuir los frentes de los cajones.");
   if (drawerCount > 1 && frontGapCm <= 0) errors.push("La separación entre frentes debe ser mayor que cero para evitar contacto o superposición.");
@@ -80,6 +104,7 @@ export function calculateDeskStructure({
 
   return {
     config,
+    sectionGeometry,
     drawerCount,
     moduleWidthCm,
     moduleCenterXCm,

@@ -43,6 +43,7 @@ export function annotationsToFurnitureProposal({ detectedType, dimensions, annot
   const structure = countAnnotations(validAnnotations);
   if (layout.sectionLayout.length) structure.sectionLayout = layout.sectionLayout;
   if (layout.elementAssignments.length) structure.elementLayout = layout.elementAssignments;
+  if (layout.drawerModule) structure.drawerModule = layout.drawerModule;
   if (layout.sectionLayout.length || layout.elementAssignments.length) structure.layoutQuality = layout.quality;
   if (layout.sectionLayout.length) structure.layoutCanNormalizeSections = layout.geometry.canNormalizeSections;
   return {

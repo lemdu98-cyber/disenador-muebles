@@ -1,3 +1,6 @@
+import { getDeskSectionGeometry } from "./deskStructure.js";
+import { getWardrobeSectionGeometry } from "./wardrobeStructure.js";
+
 export const DRAWER_SLIDE_TYPES = {
   none: { label: "Sin corredera", leftClearanceCm: 0.5, rightClearanceCm: 0.5 },
   telescopic: { label: "Telescópica de bolas", leftClearanceCm: 1.27, rightClearanceCm: 1.27 },
@@ -31,7 +34,7 @@ export function getDrawerClearances(config = DEFAULT_DRAWER_SLIDE_CONFIG) {
 
 export function getDrawerOpeningWidthCm({ furnitureType, widthCm, thicknessCm, drawers, deskConfig, wardrobeConfig }) {
   if (!drawers) return 0;
-  if (furnitureType === "desk") return Math.max(0, Number(deskConfig?.drawerModuleWidthCm ?? 40) - thicknessCm * 2);
+  if (furnitureType === "desk") return getDeskSectionGeometry({ widthCm, thicknessCm, deskConfig }).drawerOpeningWidthCm;
   if (furnitureType === "tvStand") return Math.min(widthCm * 0.38, 72);
   if (furnitureType === "wardrobe") {
     return getWardrobeSectionGeometry({ widthCm, thicknessCm, sectionWidthRatios: wardrobeConfig?.sectionWidthRatios }).sectionWidthsCm[0];
@@ -54,4 +57,3 @@ export function calculateDrawerSlideDimensions({ furnitureType, widthCm, depthCm
     sideLengthCm, availableDepthCm, hasEnoughDepth: !drawers || sideLengthCm <= availableDepthCm,
   };
 }
-import { getWardrobeSectionGeometry } from "./wardrobeStructure.js";
