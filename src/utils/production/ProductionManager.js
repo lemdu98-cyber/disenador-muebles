@@ -1,6 +1,6 @@
-import { MATERIAL_ORDER } from "../materialConfig";
-import { getKnownPieceIds, lockResults } from "./LockedBoardsManager";
-import { optimizeIncrementally } from "./IncrementalOptimizer";
+import { MATERIAL_ORDER } from "../materialConfig.js";
+import { getKnownPieceIds, lockResults } from "./LockedBoardsManager.js";
+import { optimizeIncrementally } from "./IncrementalOptimizer.js";
 
 export function createFixedProduction(results, materialConfigs, optimizerSettings) {
   return {

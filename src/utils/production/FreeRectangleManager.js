@@ -1,5 +1,5 @@
-import { kerfCm, splitFreeRect } from "../optimizer/kerfCalculator";
-import { getPieceOrientations } from "../optimizer/rotationEngine";
+import { kerfCm, splitFreeRect } from "../optimizer/kerfCalculator.js";
+import { getPieceOrientations } from "../optimizer/rotationEngine.js";
 
 const EPSILON = 0.001;
 

@@ -1,9 +1,9 @@
-import { optimizeMaterial } from "../materialOptimizer";
-import { calculateOptimizationStatistics } from "../optimizer/statisticsEngine";
-import { generateCutSequence } from "../optimizer/cutSequenceGenerator";
-import { BOARD_STATES } from "./BoardStateManager";
-import { isCompatibleLockedBoard } from "./BoardValidator";
-import { findBestFreePlacement, insertIntoFreeRect } from "./FreeRectangleManager";
+import { optimizeMaterial } from "../materialOptimizer.js";
+import { calculateOptimizationStatistics } from "../optimizer/statisticsEngine.js";
+import { generateCutSequence } from "../optimizer/cutSequenceGenerator.js";
+import { BOARD_STATES } from "./BoardStateManager.js";
+import { isCompatibleLockedBoard } from "./BoardValidator.js";
+import { findBestFreePlacement, insertIntoFreeRect } from "./FreeRectangleManager.js";
 
 export function optimizeIncrementally({ currentResult, newPieces, materialConfig, optimizerSettings, scrapBank = [] }) {
   let boards = currentResult.boards.map((board) => ({

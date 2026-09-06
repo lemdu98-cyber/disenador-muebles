@@ -39,6 +39,16 @@ test("ropero conserva repisas, cajones y configuraciones compartidas", () => {
   assert.deepEqual(config.quantities, { drawers: 6, shelves: 4 });
   assert.ok(config.furniture.drawerSlideConfig);
   assert.ok(config.furniture.drawerFrontConfig);
+  assert.deepEqual(config.furniture.wardrobeConfig.sectionWidthRatios, [1 / 3, 1 / 3, 1 / 3]);
+});
+
+test("ropero guarda/restaura ratios y los diseños antiguos reciben tercios", () => {
+  const config = serializeDesignConfig({ ...state, furnitureType: "wardrobe", wardrobeConfig: { ...state.wardrobeConfig, sectionWidthRatios: [30, 40, 30] } });
+  assert.deepEqual(config.furniture.wardrobeConfig.sectionWidthRatios, [.3, .4, .3]);
+  const restored = deserializeDesignConfig("wardrobe", config);
+  assert.deepEqual(restored.furniture.wardrobeConfig.sectionWidthRatios, [.3, .4, .3]);
+  const legacy = deserializeDesignConfig("wardrobe", { dimensions: {}, quantities: {}, furniture: { wardrobeConfig: { doorType: "hinged" } }, materials: {} });
+  assert.deepEqual(legacy.furniture.wardrobeConfig.sectionWidthRatios, [1 / 3, 1 / 3, 1 / 3]);
 });
 
 test("solo persiste espesores de material y omite precios, placas y optimizador", () => {

@@ -11,4 +11,6 @@ export const DEFAULT_OPTIMIZER_SETTINGS = {
   allowRotation: true,
   respectGrain: true,
   useScrapBank: true,
+  freeEditMode: false,
+  magneticSnap: true,
 };

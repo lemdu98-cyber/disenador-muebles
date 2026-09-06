@@ -24,7 +24,9 @@ export default function OptimizerSettings({ settings, onChange }) {
       <label>Margen derecho (cm)<input type="number" min="0" step=".1" value={settings.marginsCm.right} onChange={updateMargin("right")} /></label>
     </div>
     <label className="check-setting"><input type="checkbox" checked={settings.allowRotation} onChange={updateBoolean("allowRotation")} /> Permitir rotación</label>
-    <label className="check-setting"><input type="checkbox" checked={settings.respectGrain} onChange={updateBoolean("respectGrain")} /> Respetar dirección de veta</label>
+    <label className="check-setting"><input type="checkbox" checked={settings.respectGrain} onChange={updateBoolean("respectGrain")} /> Respetar veta en piezas visibles</label>
     <label className="check-setting"><input type="checkbox" checked={settings.useScrapBank} onChange={updateBoolean("useScrapBank")} /> Utilizar Banco de Retazos</label>
+    <label className="check-setting"><input type="checkbox" checked={Boolean(settings.freeEditMode)} onChange={updateBoolean("freeEditMode")} /> Modo libre de edición</label>
+    {settings.freeEditMode && <><p className="setting-help">Permite superponer o sacar piezas temporalmente mientras reorganizas la placa. La distribución debe ser válida antes de guardarla.</p><label className="check-setting"><input type="checkbox" checked={settings.magneticSnap !== false} onChange={updateBoolean("magneticSnap")} /> Ajuste magnético</label></>}
   </section>;
 }

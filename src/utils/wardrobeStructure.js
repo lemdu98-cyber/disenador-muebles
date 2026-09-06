@@ -3,7 +3,9 @@ import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "./drawerLimits.js";
 
 export const WARDROBE_LIMITS = { shoeShelves: { min: 2, default: 3, max: 5 }, fixedDrawersPerBody: 3 };
 export const SHOE_BOTTOM_SHELF_CLEARANCE_CM = 1;
+export const DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS = [1 / 3, 1 / 3, 1 / 3];
 export const DEFAULT_WARDROBE_CONFIG = {
+  sectionWidthRatios: DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS,
   upperCompartmentHeightCm: 38,
   drawerRegionHeightCm: 58,
   shoeRegionHeightCm: 68,
@@ -28,16 +30,43 @@ export const DEFAULT_WARDROBE_CONFIG = {
 
 const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
+export function normalizeWardrobeSectionWidthRatios(value) {
+  if (!Array.isArray(value) || value.length !== 3) return { ratios: [...DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS], valid: false, error: "La distribución del ropero debe contener exactamente tres proporciones." };
+  const numbers = value.map(Number);
+  if (numbers.some((ratio) => !Number.isFinite(ratio) || ratio <= 0)) return { ratios: [...DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS], valid: false, error: "Las proporciones de los tres cuerpos deben ser números mayores que cero." };
+  const total = numbers.reduce((sum, ratio) => sum + ratio, 0);
+  if (!Number.isFinite(total) || total <= 0) return { ratios: [...DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS], valid: false, error: "No se pudo normalizar la distribución de los cuerpos." };
+  const ratios = numbers.map((ratio) => ratio / total);
+  return { ratios, valid: true, error: "" };
+}
+
+/** Ratios describe the three clear internal openings after all four vertical panels. */
+export function getWardrobeSectionGeometry({ widthCm, thicknessCm, sectionWidthRatios }) {
+  const normalized = normalizeWardrobeSectionWidthRatios(sectionWidthRatios ?? DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS);
+  const innerTotalWidthCm = Math.max(0, num(widthCm) - num(thicknessCm) * 4);
+  const sectionWidthsCm = normalized.ratios.map((ratio) => innerTotalWidthCm * ratio);
+  sectionWidthsCm[2] = innerTotalWidthCm - sectionWidthsCm[0] - sectionWidthsCm[1];
+  const leftInnerEdgeCm = -num(widthCm) / 2 + num(thicknessCm);
+  const sectionStartXCm = [leftInnerEdgeCm];
+  sectionStartXCm[1] = sectionStartXCm[0] + sectionWidthsCm[0] + num(thicknessCm);
+  sectionStartXCm[2] = sectionStartXCm[1] + sectionWidthsCm[1] + num(thicknessCm);
+  const bodyCentersXCm = sectionStartXCm.map((start, index) => start + sectionWidthsCm[index] / 2);
+  const dividerPositionsCm = [sectionStartXCm[1] - num(thicknessCm) / 2, sectionStartXCm[2] - num(thicknessCm) / 2];
+  const panelCentersXCm = [-num(widthCm) / 2 + num(thicknessCm) / 2, ...dividerPositionsCm, num(widthCm) / 2 - num(thicknessCm) / 2];
+  return { innerTotalWidthCm, sectionWidthsCm, sectionStartXCm, bodyCentersXCm, dividerPositionsCm, panelCentersXCm, sectionWidthRatios: normalized.ratios, ratiosValid: normalized.valid, ratioError: normalized.error };
+}
+
 export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thicknessCm, bottomThicknessCm = .3, shelves = 3, drawerDimensions, wardrobeConfig }) {
   const config = { ...DEFAULT_WARDROBE_CONFIG, ...wardrobeConfig };
   const bodyCount = 3;
   const drawersPerBody = WARDROBE_LIMITS.fixedDrawersPerBody;
   const shoeShelfCount = Math.floor(num(shelves, 3));
   const sideHeightCm = heightCm - thicknessCm;
-  const openingWidthCm = (widthCm - thicknessCm * 4) / bodyCount;
-  const panelCentersXCm = Array.from({ length: 4 }, (_, index) => -widthCm / 2 + thicknessCm / 2 + index * (openingWidthCm + thicknessCm));
-  const bodyCentersXCm = Array.from({ length: bodyCount }, (_, index) => panelCentersXCm[index] + thicknessCm / 2 + openingWidthCm / 2);
-  const backEdgesXCm = [-widthCm / 2, (panelCentersXCm[1] + panelCentersXCm[0]) / 2 + (openingWidthCm + thicknessCm) / 2, (panelCentersXCm[2] + panelCentersXCm[1]) / 2 + (openingWidthCm + thicknessCm) / 2, widthCm / 2];
+  const sectionGeometry = getWardrobeSectionGeometry({ widthCm, thicknessCm, sectionWidthRatios: config.sectionWidthRatios });
+  config.sectionWidthRatios = sectionGeometry.sectionWidthRatios;
+  const { innerTotalWidthCm, sectionWidthsCm, sectionStartXCm, bodyCentersXCm, dividerPositionsCm, panelCentersXCm } = sectionGeometry;
+  const openingWidthCm = sectionWidthsCm[0];
+  const backEdgesXCm = [-widthCm / 2, ...dividerPositionsCm, widthCm / 2];
   const backLayouts = Array.from({ length: 3 }, (_, index) => ({ widthCm: backEdgesXCm[index + 1] - backEdgesXCm[index], centerXCm: (backEdgesXCm[index + 1] + backEdgesXCm[index]) / 2 }));
   const upperCompartmentHeightCm = num(config.upperCompartmentHeightCm, 38);
   const upperShelfYCm = heightCm / 2 - thicknessCm - upperCompartmentHeightCm - thicknessCm / 2;
@@ -60,6 +89,8 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const drawerOpenOffsetCm = calculateDrawerOpenOffsetCm(drawerDepthCm, config.showOpenDrawers);
   const drawerLayouts = [0, 2].flatMap((bodyIndex) => Array.from({ length: drawersPerBody }, (_, drawerIndex) => ({
     bodyIndex, drawerIndex,
+    openingWidthCm: sectionWidthsCm[bodyIndex],
+    drawerBoxWidthCm: Math.max(0, sectionWidthsCm[bodyIndex] - (drawerDimensions?.totalClearanceCm || 0)),
     centerXCm: bodyCentersXCm[bodyIndex],
     centerYCm: lowerStructureTopCm + drawerGapCm + drawerFrontHeightCm / 2 + drawerIndex * (drawerFrontHeightCm + drawerGapCm),
     centerZCm: depthCm / 2 - drawerDepthCm / 2 + drawerOpenOffsetCm,
@@ -78,7 +109,10 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const body3HangingHeightCm = rodYCm - body3HangingBottomCm;
   const edgeGapCm = Math.max(.1, num(config.doorEdgeGapCm, .2));
   const doorGapCm = Math.max(.2, num(config.doorGapCm, .3));
-  const doorWidthCm = (widthCm - edgeGapCm * 2 - doorGapCm * 2) / 3;
+  const hingedDoorCoverWidthCm = widthCm - edgeGapCm * 2 - doorGapCm * 2;
+  const doorWidthsCm = sectionGeometry.sectionWidthRatios.map((ratio) => hingedDoorCoverWidthCm * ratio);
+  doorWidthsCm[2] = hingedDoorCoverWidthCm - doorWidthsCm[0] - doorWidthsCm[1];
+  const doorWidthCm = doorWidthsCm[0];
   const doorHeightCm = heightCm - edgeGapCm * 2;
   const hingedSectionGapCm = Math.max(.2, num(config.hingedSectionGapCm, .3));
   const hingedTopEdgeCm = heightCm / 2 - edgeGapCm;
@@ -105,10 +139,16 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const slidingDoorStepCm = slidingDoorWidthCm - slidingDoorOverlapCm;
   const slidingDoorClosedCentersXCm = [-slidingDoorStepCm, 0, slidingDoorStepCm];
   const slidingDoorOpenOffsetsXCm = [slidingDoorStepCm, -slidingDoorStepCm, -slidingDoorStepCm];
-  const drawerBoxWidthCm = Math.max(0, openingWidthCm - (drawerDimensions?.totalClearanceCm || 0));
+  const drawerBoxWidthsCm = sectionWidthsCm.map((width) => Math.max(0, width - (drawerDimensions?.totalClearanceCm || 0)));
+  const drawerBackWidthsCm = drawerBoxWidthsCm.map((width) => Math.max(0, width - thicknessCm * 2));
+  const drawerBoxWidthCm = drawerBoxWidthsCm[0];
   const errors = [];
+  if (!sectionGeometry.ratiosValid) errors.push(sectionGeometry.ratioError);
   if (widthCm <= thicknessCm * 4 || heightCm <= thicknessCm * 3 || depthCm <= thicknessCm * 2) errors.push("Las dimensiones exteriores no permiten construir tres cuerpos.");
-  if (openingWidthCm < 45) errors.push("Cada cuerpo debe conservar al menos 45 cm de ancho útil.");
+  const drawerMinimumWidthCm = Math.max(45, (drawerDimensions?.totalClearanceCm || 0) + thicknessCm * 2 + 12);
+  if (sectionWidthsCm[0] < drawerMinimumWidthCm) errors.push(`El Cuerpo 1 necesita al menos ${drawerMinimumWidthCm.toFixed(1)} cm interiores para cajones y correderas.`);
+  if (sectionWidthsCm[1] < 45) errors.push("El Cuerpo 2 necesita al menos 45 cm interiores para perchero y zapatero.");
+  if (sectionWidthsCm[2] < drawerMinimumWidthCm) errors.push(`El Cuerpo 3 necesita al menos ${drawerMinimumWidthCm.toFixed(1)} cm interiores para cajones y correderas.`);
   if (upperCompartmentHeightCm < 25 || upperCompartmentHeightCm > heightCm * .3) errors.push("El compartimento superior debe tener una altura útil razonable.");
   if (lowerCrossbarHeightCm < 5 || lowerCrossbarHeightCm >= drawerRegionHeightCm / 2) errors.push("La altura del travesaño inferior debe ser estructuralmente útil y compatible con los cajones.");
   if (shoeShelfCount < WARDROBE_LIMITS.shoeShelves.min || shoeShelfCount > WARDROBE_LIMITS.shoeShelves.max) errors.push(`El zapatero admite entre ${WARDROBE_LIMITS.shoeShelves.min} y ${WARDROBE_LIMITS.shoeShelves.max} repisas.`);
@@ -124,19 +164,20 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   if (!isSlidingDoors && upperDoorBottomEdgeCm <= mainDoorTopEdgeCm) errors.push("La holgura entre puertas superiores y principales es insuficiente.");
   return {
     config, bodyCount, drawersPerBody, totalDrawers: drawersPerBody * 2, externalWidthCm: widthCm, sideHeightCm, openingWidthCm,
+    innerTotalWidthCm, sectionWidthsCm, sectionStartXCm, sectionWidthRatios: sectionGeometry.sectionWidthRatios, dividerPositionsCm,
     panelCentersXCm, bodyCentersXCm, backLayouts, upperCompartmentHeightCm, upperShelfYCm,
     lowerCrossbarHeightCm, lowerStructureTopCm, drawerRegionHeightCm, drawerFrontHeightCm, drawerSideHeightCm, drawerShelfYCm,
     intermediateFreeHeightCm, intermediateGapCm, intermediateShelfYCentersCm,
     drawerDepthCm, drawerLayouts, shoeRegionHeightCm, shoeBottomShelfClearanceCm, shoeBottomShelfYCm,
     shoeUsableHeightCm, shoeSpacingCm, shoeShelfYCentersCm,
-    rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorHeightCm,
+    rodYCm, body2HangingHeightCm, body3HangingHeightCm, doorWidthCm, doorWidthsCm, doorHeightCm,
     hingedSectionGapCm, upperDoorHeightCm, upperDoorCenterYCm, mainDoorHeightsCm, mainDoorCentersYCm,
     mainDoorBottomEdgesCm: [sideMainDoorBottomEdgeCm, centerMainDoorBottomEdgeCm, sideMainDoorBottomEdgeCm], isSlidingDoors,
     slidingDoorExtensionCm, slidingDoorOverlapCm, slidingTrackCount, slidingDoorClearanceCm,
     slidingLowerSupportHeightCm, topDepthCm, slidingDoorWidthCm, slidingDoorHeightCm,
     slidingDoorStepCm, slidingDoorClosedCentersXCm, slidingDoorOpenOffsetsXCm,
-    doorGapCm, edgeGapCm, drawerBoxWidthCm,
-    drawerBackWidthCm: Math.max(0, drawerBoxWidthCm - thicknessCm * 2), bottomThicknessCm,
+    doorGapCm, edgeGapCm, drawerBoxWidthCm, drawerBoxWidthsCm,
+    drawerBackWidthCm: drawerBackWidthsCm[0], drawerBackWidthsCm, bottomThicknessCm,
     valid: errors.length === 0, errors, error: errors.join(" "),
   };
 }

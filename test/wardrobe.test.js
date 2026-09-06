@@ -4,11 +4,12 @@ import { getCutPieces } from "../src/utils/cutPieces.js";
 import { createMaterialConfig } from "../src/utils/materialConfig.js";
 import { validateAllFurniturePieces } from "../src/utils/manufacturingValidation.js";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
-import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, SHOE_BOTTOM_SHELF_CLEARANCE_CM } from "../src/utils/wardrobeStructure.js";
+import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, getWardrobeSectionGeometry, normalizeWardrobeSectionWidthRatios, SHOE_BOTTOM_SHELF_CLEARANCE_CM } from "../src/utils/wardrobeStructure.js";
 import { calculateLeftHingedDoorTransform, HINGED_DOOR_OPEN_ANGLE_RAD } from "../src/utils/wardrobeDoors.js";
 import { calculateHingePositionsCm, getHardwareItems, hingesForDoorHeight } from "../src/utils/hardware.js";
 
 const design = { furnitureType: "wardrobe", widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, wardrobeConfig: DEFAULT_WARDROBE_CONFIG };
+const rounded = (values) => values.map((value) => Number(value.toFixed(6)));
 const structureFor = (overrides = {}) => {
   const input = { ...design, ...overrides, thicknessCm: 1.5 };
   const drawerDimensions = calculateDrawerSlideDimensions(input);
@@ -20,11 +21,68 @@ test("default wardrobe calculates three equal useful bodies", () => {
   assert.equal(structure.valid, true);
   assert.equal(structure.sideHeightCm, 228.5);
   assert.equal(structure.openingWidthCm, 244 / 3);
+  assert.deepEqual(rounded(structure.sectionWidthsCm), rounded([244 / 3, 244 / 3, 244 / 3]));
   assert.equal(structure.panelCentersXCm.length, 4);
   assert.equal(structure.drawerLayouts.length, 6);
   assert.equal(structure.shoeShelfYCentersCm.length, 3);
   assert.equal(structure.shoeBottomShelfYCm - .75 - structure.lowerStructureTopCm, SHOE_BOTTOM_SHELF_CLEARANCE_CM);
   assert.ok(structure.shoeShelfYCentersCm[0] > structure.shoeBottomShelfYCm + .75);
+});
+
+test("30/40/30 uses the clear width after four panels and positions dividers cumulatively", () => {
+  const geometry = getWardrobeSectionGeometry({ widthCm: 250, thicknessCm: 1.5, sectionWidthRatios: [30, 40, 30] });
+  assert.equal(geometry.innerTotalWidthCm, 244);
+  assert.deepEqual(rounded(geometry.sectionWidthsCm), [73.2, 97.6, 73.2]);
+  assert.deepEqual(rounded(geometry.dividerPositionsCm), [-49.55, 49.55]);
+  assert.deepEqual(rounded(geometry.bodyCentersXCm), [-86.9, 0, 86.9]);
+  assert.ok(Math.abs(geometry.sectionWidthsCm.reduce((sum, width) => sum + width, 0) - geometry.innerTotalWidthCm) < 1e-9);
+});
+
+test("invalid ratios are rejected and geometry safely falls back to thirds", () => {
+  for (const value of [[1, 2], [1, 0, 2], [1, -1, 2], [1, Number.NaN, 2]]) assert.equal(normalizeWardrobeSectionWidthRatios(value).valid, false);
+  const structure = structureFor({ wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [1, 0, 1] } });
+  assert.equal(structure.valid, false);
+  assert.match(structure.error, /mayores que cero/);
+  assert.deepEqual(structure.sectionWidthRatios, [1 / 3, 1 / 3, 1 / 3]);
+});
+
+test("variable bodies propagate to shelves, crossbars, hinged doors, backs and drawer boxes", () => {
+  const wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [25, 35, 40] };
+  const structure = structureFor({ wardrobeConfig });
+  const materialConfigs = createMaterialConfig();
+  const pieces = getCutPieces({ ...design, wardrobeConfig, materialConfigs });
+  assert.deepEqual(rounded(structure.sectionWidthsCm), [61, 85.4, 97.6]);
+  assert.deepEqual(rounded(structure.drawerBoxWidthsCm), [58.46, 82.86, 95.06]);
+  assert.deepEqual(rounded(structure.doorWidthsCm), [62.25, 87.15, 99.6]);
+  assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Travesaño frontal inferior Cuerpo ${body}`).length), [61, 85.5, 97.5]);
+  assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Repisa superior Cuerpo ${body}`).length), [61, 85.5, 97.5]);
+  assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Puerta superior Cuerpo ${body}`).width), [62.5, 87, 99.5]);
+  assert.notEqual(pieces.find((piece) => piece.name === "Parte trasera Cajón 1 Cuerpo 1").length, pieces.find((piece) => piece.name === "Parte trasera Cajón 1 Cuerpo 3").length);
+  assert.notEqual(pieces.find((piece) => piece.name === "Base cartón prensado Cajón 1 Cuerpo 1").length, pieces.find((piece) => piece.name === "Base cartón prensado Cajón 1 Cuerpo 3").length);
+  assert.deepEqual(rounded(structure.backLayouts.map(({ widthCm }) => widthCm)), [63.25, 86.9, 99.85]);
+  assert.equal(validateAllFurniturePieces(pieces, materialConfigs).valid, true);
+});
+
+test("sliding leaves remain equal over the full facade with unequal bodies", () => {
+  const wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, doorType: "sliding", sectionWidthRatios: [25, 50, 25] };
+  const pieces = getCutPieces({ ...design, wardrobeConfig, materialConfigs: createMaterialConfig() });
+  const doors = pieces.filter((piece) => piece.name.startsWith("Puerta corrediza"));
+  assert.equal(new Set(doors.map(({ width }) => width)).size, 1);
+  assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Travesaño frontal inferior Cuerpo ${body}`).length), [61, 122, 61]);
+  assert.equal(pieces.find((piece) => piece.name === "Soporte frontal inferior para riel").length, 250);
+});
+
+test("extreme ratios are constructively rejected and variable backs retain plate validation", () => {
+  const wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [1, 98, 1] };
+  const structure = structureFor({ wardrobeConfig });
+  assert.equal(structure.valid, false);
+  assert.match(structure.error, /Cuerpo 1/);
+  const materialConfigs = createMaterialConfig();
+  materialConfigs.hardboard = { ...materialConfigs.hardboard, widthCm: 80 };
+  const validRatios = { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [30, 40, 30] };
+  const validation = validateAllFurniturePieces(getCutPieces({ ...design, wardrobeConfig: validRatios, materialConfigs }), materialConfigs);
+  assert.equal(validation.valid, false);
+  assert.match(validation.error, /Fondo cartón prensado Cuerpo/);
 });
 
 test("cut list contains one top, six crossbars, modular backs and explicitly named drawers", () => {
@@ -86,7 +144,7 @@ test("body 2 main door height, cut list and hinges derive from the shortened geo
   const structure = structureFor();
   const pieces = getCutPieces({ ...design, materialConfigs: createMaterialConfig() });
   const centerDoor = pieces.find((piece) => piece.name === "Puerta principal Cuerpo 2");
-  assert.equal(centerDoor.length, structure.mainDoorHeightsCm[1]);
+  assert.equal(centerDoor.length, 181.5);
 
   const hardware = getHardwareItems({ ...design, wardrobeMainDoorHeightsCm: structure.mainDoorHeightsCm });
   const expectedMainHinges = structure.mainDoorHeightsCm.reduce((total, height) => total + hingesForDoorHeight(height), 0);

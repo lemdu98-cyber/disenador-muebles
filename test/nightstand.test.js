@@ -36,7 +36,7 @@ test("cut pieces use the overlay front without widening the drawer box", () => {
   const named = (name) => pieces.filter((piece) => piece.name === name);
   assert.deepEqual(named("Tapa superior").map(({ length, width }) => [length, width]), [[50, 41.5]]);
   assert.deepEqual(named("Frente de cajón").map(({ length, width }) => [length, width]), [[50, 22], [50, 22]]);
-  assert.deepEqual(named("Parte trasera de cajón").map(({ length, width }) => [length, width]), [[41.46, 20], [41.46, 20]]);
+  assert.deepEqual(named("Parte trasera de cajón").map(({ length, width }) => [length, width]), [[41.5, 20], [41.5, 20]]);
   assert.deepEqual(named("Lateral izquierdo de cajón").map(({ length, width }) => [length, width]), [[35, 20], [35, 20]]);
 });
 

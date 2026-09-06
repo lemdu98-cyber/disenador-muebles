@@ -1,4 +1,4 @@
-import { getCutPieces, getFurnitureLabel } from "./cutPieces";
+import { getCutPieces, getFurnitureLabel } from "./cutPieces.js";
 
 export const FURNITURE_TYPES = ["wardrobe", "desk", "tvStand", "nightstand", "catHouse"];
 
@@ -38,7 +38,7 @@ export function groupPiecesByFurniture(orderItems, materialConfigs) {
   return orderItems.filter((item) => item.quantity).map((item) => {
     const pieces = getCutPieces({ ...item.params, materialConfigs });
     const groups = Object.values(pieces.reduce((result, piece) => {
-      const key = `${piece.name}|${piece.length}|${piece.width}`;
+      const key = `${piece.name}|${piece.length}|${piece.width}|${piece.grainRequired}`;
       (result[key] ||= []).push(piece);
       return result;
     }, {}));
@@ -50,8 +50,8 @@ export function consolidatePieces(pieces) {
   return Object.values(pieces.reduce((result, piece) => {
     const length = Number(piece.length.toFixed(1));
     const width = Number(piece.width.toFixed(1));
-    const key = `${piece.material.id}|${piece.material.thicknessMm}|${length}|${width}`;
-    (result[key] ||= { length, width, quantity: 0, areaCm2: length * width, names: new Set(), material: piece.material });
+    const key = `${piece.material.id}|${piece.material.thicknessMm}|${length}|${width}|${piece.grainRequired}`;
+    (result[key] ||= { length, width, quantity: 0, areaCm2: length * width, names: new Set(), material: piece.material, grainRequired: piece.grainRequired });
     result[key].quantity += 1;
     result[key].names.add(piece.name);
     return result;

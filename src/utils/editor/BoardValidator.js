@@ -1,5 +1,5 @@
-import { findCollision } from "./CollisionDetector";
-import { generateCutSequence } from "../optimizer/cutSequenceGenerator";
+import { findCollision } from "./CollisionDetector.js";
+import { generateCutSequence } from "../optimizer/cutSequenceGenerator.js";
 
 const EPSILON = .001;
 
@@ -49,6 +49,7 @@ export function rebuildBoardGeometry(board) {
     freeRects = freeRects.flatMap((free) => subtractRect(free, occupied));
   });
   const usedArea = board.pieces.reduce((sum, piece) => sum + piece.areaCm2, 0);
+  const utilization = board.usableArea ? usedArea / board.usableArea * 100 : 0;
   const cuttingSequence = generateCutSequence({ ...board, freeRects });
-  return { ...board, freeRects, usedArea, cuttingSequence, cutCount: cuttingSequence.length, manuallyEdited: true };
+  return { ...board, freeRects, usedArea, utilization, cuttingSequence, cutCount: cuttingSequence.length, manuallyEdited: true };
 }

@@ -22,9 +22,12 @@ export function snapPiecePosition(piece, pieces, board, thresholdCm = 1.5) {
     yTargets.push(other.y, other.y + other.width + kerf, other.y - piece.width - kerf);
   });
 
-  return {
+  const snapped = {
     ...piece,
     x: closest(piece.x, xTargets, thresholdCm),
     y: closest(piece.y, yTargets, thresholdCm),
   };
+  const others = pieces.filter((other) => other.id !== piece.id);
+  return findCollision(snapped, others, kerf) && !findCollision(piece, others, kerf) ? piece : snapped;
 }
+import { findCollision } from "./CollisionDetector.js";

@@ -2,7 +2,7 @@ import { MATERIAL_ORDER } from "../utils/materialConfig";
 
 function MaterialCutList({ config, pieces }) {
   const consolidated = Object.values(pieces.reduce((result, piece) => {
-    const key = `${piece.name}|${piece.length}|${piece.width}`;
+    const key = `${piece.name}|${piece.length}|${piece.width}|${piece.grainRequired}`;
     (result[key] ||= { ...piece, quantity: 0 });
     result[key].quantity += 1;
     return result;
@@ -13,6 +13,7 @@ function MaterialCutList({ config, pieces }) {
     <h2>{config.label}</h2>
     {consolidated.length ? consolidated.map((item) => <div className="cut-piece-row" key={`${item.name}-${item.length}-${item.width}`}>
       <div className="cut-row"><span>{item.name}</span><b>{item.quantity} · {item.length.toFixed(1)} × {item.width.toFixed(1)} cm</b></div>
+      {item.grainRequired && <div className="cut-piece-details"><span>Veta obligatoria</span></div>}
       {item.mounting && <div className="cut-piece-details">
         <span>{item.material.thicknessMm} mm</span>
         <span>{item.location}</span>

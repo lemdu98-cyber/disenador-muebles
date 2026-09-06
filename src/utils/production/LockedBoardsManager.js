@@ -1,4 +1,4 @@
-import { BOARD_STATES } from "./BoardStateManager";
+import { BOARD_STATES } from "./BoardStateManager.js";
 
 export function materialFingerprint(config) {
   return JSON.stringify({

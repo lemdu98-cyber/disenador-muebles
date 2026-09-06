@@ -1,6 +1,7 @@
 import { MATERIAL_IDS } from "./materialConfig.js";
 import { canRotatePiece } from "./optimizer/grainEngine.js";
 import { DEFAULT_OPTIMIZER_SETTINGS } from "./optimizer/optimizerConfig.js";
+import { isManufacturableCutDimension } from "./manufacturingGrid.js";
 
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 
@@ -38,6 +39,18 @@ export function validateFurniturePieces(pieces, boardConfig, optimizerSettings =
 }
 
 export function validateAllFurniturePieces(pieces, materialConfigs, optimizerSettings = DEFAULT_OPTIMIZER_SETTINGS) {
+  if (!(pieces || []).length) return { valid: false, invalidPieces: [], warnings: [], error: "No se generaron piezas fabricables para esta configuración." };
+  const missingGrainMetadata = (pieces || []).filter((piece) => (piece.material?.id || piece.materialId) === MATERIAL_IDS.MELAMINE && typeof piece.grainRequired !== "boolean");
+  if (missingGrainMetadata.length) {
+    const piece = missingGrainMetadata[0];
+    return { valid: false, invalidPieces: missingGrainMetadata.map((item) => ({ piece: item })), warnings: [], error: `La pieza ${piece.name} no declara si requiere respetar la veta.` };
+  }
+  const cutMaterialIds = new Set([MATERIAL_IDS.MELAMINE, MATERIAL_IDS.HARDBOARD]);
+  const offGridPieces = (pieces || []).filter((piece) => cutMaterialIds.has(piece.material?.id || piece.materialId) && (!isManufacturableCutDimension(piece.length) || !isManufacturableCutDimension(piece.width)));
+  if (offGridPieces.length) {
+    const piece = offGridPieces[0];
+    return { valid: false, invalidPieces: offGridPieces.map((item) => ({ piece: item })), warnings: [], error: `La pieza ${piece.name} (${piece.length} × ${piece.width} cm) no respeta la cuadrícula de fabricación de 5 mm.` };
+  }
   const invalidPieces = (pieces || []).map((piece) => {
     const materialId = piece.material?.id || piece.materialId;
     const board = materialConfigs?.[materialId];

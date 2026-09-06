@@ -21,6 +21,7 @@ import TvStandSettings from "./components/TvStandSettings";
 import OptimizerSettings from "./components/OptimizerSettings";
 import ManufacturingStatus from "./components/ManufacturingStatus";
 import DesignLibrary from "./components/DesignLibrary";
+import FurnitureImageImporter from "./components/FurnitureImageImporter";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -36,6 +37,7 @@ import { calculateDeskDrawerCapacity, calculateNightstandDrawerCapacity, DESK_DR
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, WARDROBE_LIMITS } from "./utils/wardrobeStructure";
 import { createDesign, getDesign, updateDesign } from "./services/furnitureDesigns";
 import { assertSupportedDesign, deserializeDesignConfig, serializeDesignConfig } from "./utils/designPersistence";
+import { proposalToNormalizedConfig } from "./utils/imageFurnitureProposal";
 import "./App.css";
 
 const MODELS = {
@@ -72,6 +74,7 @@ export default function App() {
   const [designBusy, setDesignBusy] = useState(false);
   const [designMessage, setDesignMessage] = useState(null);
   const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
+  const [imageImporterOpen, setImageImporterOpen] = useState(false);
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
@@ -176,31 +179,75 @@ export default function App() {
     } finally { setDesignBusy(false); }
   };
 
+  const applyNormalizedConfiguration = (normalized) => {
+    const { furnitureType: type, dimensions, quantities = {}, furniture = {}, materialThicknesses = {}, useConstructiveDefaults = false } = normalized;
+    setFurnitureType(type);
+    setWidthCm(dimensions.widthCm);
+    setHeightCm(dimensions.heightCm);
+    setDepthCm(dimensions.depthCm);
+    setDoors(quantities.doors ?? (type === "wardrobe" ? 3 : type === "tvStand" ? 0 : 2));
+    setDrawers(quantities.drawers ?? (type === "wardrobe" ? 6 : 0));
+    setShelves(quantities.shelves ?? (type === "wardrobe" ? 3 : 0));
+    setDrawerSlideConfig({ ...DEFAULT_DRAWER_SLIDE_CONFIG, ...(useConstructiveDefaults ? {} : furniture.drawerSlideConfig) });
+    setDrawerFrontConfig({ ...DEFAULT_DRAWER_FRONT_CONFIG, ...(useConstructiveDefaults ? {} : furniture.drawerFrontConfig) });
+    setCatHouseConfig((current) => ({ ...current, ...(useConstructiveDefaults ? {} : furniture.catHouseConfig) }));
+    setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...(useConstructiveDefaults ? {} : furniture.nightstandStructureConfig) });
+    setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...(useConstructiveDefaults ? {} : furniture.deskConfig) });
+    setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...(useConstructiveDefaults ? {} : furniture.tvStandConfig) });
+    setWardrobeConfig({ ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig });
+    setMaterialConfigs((current) => ({
+      melamine: { ...current.melamine, ...(materialThicknesses.melamine === undefined ? {} : { thicknessMm: materialThicknesses.melamine }) },
+      hardboard: { ...current.hardboard, ...(materialThicknesses.hardboard === undefined ? {} : { thicknessMm: materialThicknesses.hardboard }) },
+    }));
+    setActiveModule("design");
+  };
+
+  const validateConstructiveProposal = (proposal) => {
+    try {
+      const normalized = proposalToNormalizedConfig(proposal);
+      const candidate = {
+        furnitureType: normalized.furnitureType,
+        ...normalized.dimensions,
+        doors: normalized.quantities.doors ?? (normalized.furnitureType === "wardrobe" ? 3 : 0),
+        drawers: normalized.quantities.drawers ?? 0,
+        shelves: normalized.quantities.shelves ?? 0,
+        drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG,
+        drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG,
+        nightstandStructureConfig: DEFAULT_NIGHTSTAND_STRUCTURE,
+        deskConfig: DEFAULT_DESK_CONFIG,
+        tvStandConfig: DEFAULT_TV_STAND_CONFIG,
+        wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, ...normalized.furniture.wardrobeConfig },
+        materialConfigs,
+      };
+      const thicknessCm = materialConfigs.melamine.thicknessMm / 10;
+      const bottomThicknessCm = materialConfigs.hardboard.thicknessMm / 10;
+      const candidateDrawerDimensions = calculateDrawerSlideDimensions({ ...candidate, thicknessCm });
+      let geometryError = candidateDrawerDimensions.hasEnoughDepth ? "" : "No existe profundidad suficiente para instalar la corredera seleccionada.";
+      if (!geometryError && candidate.furnitureType === "nightstand") geometryError = calculateNightstandStructure({ ...candidate, thicknessCm, drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG, structureConfig: DEFAULT_NIGHTSTAND_STRUCTURE }).error;
+      if (!geometryError && candidate.furnitureType === "desk") geometryError = calculateDeskStructure({ ...candidate, thicknessCm, bottomThicknessCm, drawerDimensions: candidateDrawerDimensions, deskConfig: DEFAULT_DESK_CONFIG }).error;
+      if (!geometryError && candidate.furnitureType === "tvStand") geometryError = calculateTvStandStructure({ ...candidate, thicknessCm, tvStandConfig: DEFAULT_TV_STAND_CONFIG }).error;
+      if (!geometryError && candidate.furnitureType === "wardrobe") geometryError = calculateWardrobeStructure({ ...candidate, thicknessCm, bottomThicknessCm, drawerDimensions: candidateDrawerDimensions, wardrobeConfig: candidate.wardrobeConfig }).error;
+      if (geometryError) return [geometryError];
+      const validation = validateAllFurniturePieces(getCutPieces(candidate), materialConfigs, optimizerSettings);
+      return validation.error ? [validation.error] : [];
+    } catch (reason) { return [reason.message]; }
+  };
+
+  const applyImageDesign = (normalized) => {
+    applyNormalizedConfiguration(normalized);
+    setCurrentDesign(null);
+    setDesignName("");
+    setImageImporterOpen(false);
+    setDesignMessage({ type: "success", text: "Propuesta aplicada. Revisa el modelo y guárdalo cuando esté listo." });
+  };
+
   const loadDesign = async (id) => {
     setDesignBusy(true);
     setDesignMessage(null);
     try {
       const saved = assertSupportedDesign(await getDesign(id));
       if (!MODELS[saved.furniture_type]) throw new Error(`Tipo de mueble desconocido: ${saved.furniture_type}.`);
-      const { dimensions, quantities, furniture, materialThicknesses } = deserializeDesignConfig(saved.furniture_type, saved.config);
-      setFurnitureType(saved.furniture_type);
-      setWidthCm(dimensions.widthCm);
-      setHeightCm(dimensions.heightCm);
-      setDepthCm(dimensions.depthCm);
-      setDoors(quantities.doors ?? 0);
-      setDrawers(quantities.drawers ?? 0);
-      setShelves(quantities.shelves ?? 0);
-      setDrawerSlideConfig({ ...DEFAULT_DRAWER_SLIDE_CONFIG, ...furniture.drawerSlideConfig });
-      setDrawerFrontConfig({ ...DEFAULT_DRAWER_FRONT_CONFIG, ...furniture.drawerFrontConfig });
-      setCatHouseConfig((current) => ({ ...current, ...furniture.catHouseConfig }));
-      setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...furniture.nightstandStructureConfig });
-      setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig });
-      setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig });
-      setWardrobeConfig({ ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig });
-      setMaterialConfigs((current) => ({
-        melamine: { ...current.melamine, ...(materialThicknesses.melamine === undefined ? {} : { thicknessMm: materialThicknesses.melamine }) },
-        hardboard: { ...current.hardboard, ...(materialThicknesses.hardboard === undefined ? {} : { thicknessMm: materialThicknesses.hardboard }) },
-      }));
+      applyNormalizedConfiguration({ furnitureType: saved.furniture_type, ...deserializeDesignConfig(saved.furniture_type, saved.config) });
       setCurrentDesign({ id: saved.id, name: saved.name });
       setDesignName(saved.name);
       setActiveModule("design");
@@ -219,6 +266,8 @@ export default function App() {
         <button type="button" className="logout-button" onClick={logout}>Cerrar sesión</button>
       </div>
       <p className="subtitle">Diseño y presupuesto para carpintería</p>
+      <button type="button" className="image-import-launch" onClick={() => setImageImporterOpen(true)}>Crear desde imagen</button>
+      <FurnitureImageImporter open={imageImporterOpen} onCancel={() => setImageImporterOpen(false)} onApply={applyImageDesign} validateConstructiveProposal={validateConstructiveProposal} />
       <section className="design-actions" aria-label="Persistencia de diseños">
         <label>Nombre del diseño<input type="text" maxLength="160" placeholder={`${MODELS[furnitureType].label} sin nombre`} value={designName} onChange={(event) => setDesignName(event.target.value)} /></label>
         <div>
@@ -263,7 +312,7 @@ export default function App() {
         {isTvStand && <TvStandSettings config={tvStandConfig} onChange={setTvStandConfig} structure={tvStandStructure} />}
         {isWardrobe && <WardrobeSettings config={wardrobeConfig} onChange={setWardrobeConfig} structure={wardrobeStructure} />}
         {!isTvStand && <DrawerSlideSettings config={drawerSlideConfig} onChange={setDrawerSlideConfig} dimensions={drawerDimensions} disabled={!drawers} forceTelescopic={isDesk || isWardrobe} />}
-        {!isDesk && !isTvStand && <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={drawerDimensions.externalWidthCm} frontWidthCm={isNightstand ? widthCm : isWardrobe ? wardrobeStructure.openingWidthCm : undefined} forceOverlay={isNightstand || isWardrobe} />}
+        {!isDesk && !isTvStand && <DrawerFrontSettings config={drawerFrontConfig} onChange={setDrawerFrontConfig} disabled={!drawers} boxWidthCm={isWardrobe ? wardrobeStructure.drawerBoxWidthsCm[0] : drawerDimensions.externalWidthCm} frontWidthCm={isNightstand ? widthCm : isWardrobe ? wardrobeStructure.sectionWidthsCm[0] : undefined} forceOverlay={isNightstand || isWardrobe} />}
       </>}
       {activeModule === "design" && <>
         <MaterialSettings configs={materialConfigs} onChange={setMaterialConfigs} />
@@ -280,7 +329,7 @@ export default function App() {
         <ambientLight intensity={1.4} />
         <directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
         <Bounds fit clip observe margin={1.12}>
-          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} color={catHouseConfig.color} entry={{ type: catHouseConfig.entryType, diameter: catHouseConfig.entryDiameterCm / 100, width: catHouseConfig.entryWidthCm / 100, height: catHouseConfig.entryHeightCm / 100 }} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} />}
+          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} color={catHouseConfig.color} entry={{ type: catHouseConfig.entryType, diameter: catHouseConfig.entryDiameterCm / 100, width: catHouseConfig.entryWidthCm / 100, height: catHouseConfig.entryHeightCm / 100 }} manufacturingPieces={generatedPieces} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} manufacturingPieces={generatedPieces} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} manufacturingPieces={generatedPieces} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} manufacturingPieces={generatedPieces} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} manufacturingPieces={generatedPieces} />}
         </Bounds>
         <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
         <OrbitControls makeDefault minDistance={2} maxDistance={10} />

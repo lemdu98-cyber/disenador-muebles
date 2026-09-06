@@ -71,3 +71,34 @@ Para desplegar, crea los repository secrets `VITE_SUPABASE_URL` y `VITE_SUPABASE
 ## Desarrollo local
 
 Ejecuta `npm run dev`. Para comprobar producción, ejecuta `npm run build` y luego `npm run preview`.
+
+## Análisis de muebles con IA
+
+El frontend invoca la Edge Function `analyze-furniture-image`; nunca llama directamente a OpenAI. En desarrollo se usa el mock por defecto. Para probar el proveedor real desde Vite, añade `VITE_FURNITURE_ANALYSIS_PROVIDER=real` a `.env.local`.
+
+Guarda los secretos locales de la función en `supabase/.env.local`, cubierto por `.gitignore`:
+
+```dotenv
+OPENAI_API_KEY=tu_clave_local
+OPENAI_MODEL=gpt-4.1-mini
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+Después ejecuta:
+
+```bash
+supabase start
+supabase functions serve analyze-furniture-image --env-file supabase/.env.local
+npm run dev
+```
+
+Para desplegar, crea otro archivo local ignorado, por ejemplo `supabase/.env.functions`, con `OPENAI_API_KEY`, `OPENAI_MODEL` y `ALLOWED_ORIGINS`. Incluye la URL exacta de GitHub Pages; acepta varios orígenes separados por comas. Luego ejecuta:
+
+```bash
+supabase login
+supabase link --project-ref TU_PROJECT_REF
+supabase secrets set --env-file supabase/.env.functions
+supabase functions deploy analyze-furniture-image
+```
+
+GitHub Pages solo requiere `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. `OPENAI_API_KEY` permanece exclusivamente en los secretos de Supabase.

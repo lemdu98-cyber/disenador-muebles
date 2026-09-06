@@ -25,6 +25,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const [orderItems, setOrderItems] = useState(() => createOrderItems(design));
   const [scrapSettings, setScrapSettings] = useState(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [id, { ...DEFAULT_SCRAP_SETTINGS }])));
   const [manualLayouts, setManualLayouts] = useState({});
+  const [manualEditStates, setManualEditStates] = useState({});
   const [fixedProduction, setFixedProduction] = useState(loadProduction);
   const [scrapBank, setScrapBank] = useState(() => { try { return JSON.parse(localStorage.getItem(BANK_KEY)) || []; } catch { return []; } });
   useEffect(() => { localStorage.setItem(BANK_KEY, JSON.stringify(scrapBank)); }, [scrapBank]);
@@ -37,7 +38,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const productionValidationError = design.designValidationError || pieceValidation.error;
   const hardwareItems = useMemo(() => getOrderHardware(effectiveOrderItems), [effectiveOrderItems]);
   const optimizationKey = useMemo(() => JSON.stringify({
-    pieces: pieces.map(({ id, length, width, grainDirection, material }) => ({ id, length, width, grainDirection, materialId: material.id })),
+    pieces: pieces.map(({ id, length, width, grainDirection, grainRequired, material }) => ({ id, length, width, grainDirection, grainRequired, materialId: material.id })),
     materialConfigs,
     optimizerSettings,
     scrapBank: scrapBank.map(({ id, lengthCm, widthCm, status, materialId }) => ({ id, lengthCm, widthCm, status, materialId })),
@@ -60,6 +61,7 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
   const hasCutBoards = fixedProduction
     ? MATERIAL_ORDER.some((id) => fixedProduction.results[id].boards.some((board) => board.status === BOARD_STATES.CUT))
     : false;
+  const hasInvalidManualEdit = Object.values(manualEditStates).some((state) => state.editing && !state.valid);
   const classifications = useMemo(() => Object.fromEntries(MATERIAL_ORDER.map((id) => [
     id,
     classifyFreeRects(effectiveOptimized[id].boards.filter((board) => board.pieces.length), scrapSettings[id], materialConfigs[id]),
@@ -117,23 +119,27 @@ export default function ProductionPanel({ design, materialConfigs, setMaterialCo
     costs: costs[id],
     settings: scrapSettings[id],
     onSettingsChange: (next) => setScrapSettings((current) => ({ ...current, [id]: next })),
-    hasManualLayout: manualLayouts[id]?.optimizationKey === optimizationKey,
-    onSaveManualLayout: (boards) => setManualLayouts((current) => ({ ...current, [id]: { boards, optimizationKey } })),
+    hasManualLayout: fixedProduction ? fixedProduction.results[id].boards.some((board) => board.manuallyEdited) : manualLayouts[id]?.optimizationKey === optimizationKey,
+    onSaveManualLayout: (boards) => {
+      if (fixedProduction) setFixedProduction((current) => ({ ...current, results: { ...current.results, [id]: { ...current.results[id], boards } } }));
+      else setManualLayouts((current) => ({ ...current, [id]: { boards, optimizationKey } }));
+    },
     onResetManualLayout: () => setManualLayouts((current) => {
       const next = { ...current };
       delete next[id];
       return next;
     }),
+    onEditingValidityChange: (state) => setManualEditStates((current) => current[id]?.editing === state.editing && current[id]?.valid === state.valid ? current : ({ ...current, [id]: state })),
   });
 
   return <section className="production-page">
     <header className="production-header"><div><p className="eyebrow">MÓDULO</p><h1>Producción</h1><p>Optimización, placas y costos separados por material.</p>{productionValidationError && <p className="validation-error">{productionValidationError}</p>}</div><button type="button" className="primary-action" onClick={saveRecoveredScraps} disabled={Boolean(productionValidationError)}>Finalizar y guardar retazos</button></header>
     <section className="production-lock-bar">
       <div className="production-lock-actions">
-        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(productionValidationError)}>Fijar producción</button>
+        <button type="button" onClick={fixProduction} disabled={!pieces.length || hasCutBoards || Boolean(productionValidationError) || hasInvalidManualEdit}>Fijar producción</button>
         <button type="button" className="primary-action" onClick={optimizeAdditions} disabled={!fixedProduction || !addedPieces.length || Boolean(productionValidationError)}>Optimizar añadidos</button>
         <button type="button" onClick={unlockProduction} disabled={!fixedProduction || hasCutBoards}>Desbloquear producción</button>
-        <button type="button" onClick={confirmBoards} disabled={!fixedProduction}>Confirmar placas</button>
+        <button type="button" onClick={confirmBoards} disabled={!fixedProduction || hasInvalidManualEdit}>Confirmar placas</button>
         <button type="button" onClick={markBoardsCut} disabled={!fixedProduction}>Marcar como cortadas</button>
         <button type="button" onClick={unlockProduction} disabled={!fixedProduction || hasCutBoards}>Restablecer optimización</button>
       </div>

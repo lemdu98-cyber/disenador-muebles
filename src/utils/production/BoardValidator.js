@@ -1,5 +1,5 @@
-import { materialFingerprint } from "./LockedBoardsManager";
-import { canAcceptPieces } from "./BoardStateManager";
+import { materialFingerprint } from "./LockedBoardsManager.js";
+import { canAcceptPieces } from "./BoardStateManager.js";
 
 export function isCompatibleLockedBoard(board, materialConfig) {
   return canAcceptPieces(board)

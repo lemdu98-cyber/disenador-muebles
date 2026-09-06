@@ -1,13 +1,13 @@
-import { OPTIMIZATION_MODES, DEFAULT_OPTIMIZER_SETTINGS } from "./optimizerConfig";
-import { getPieceOrientations } from "./rotationEngine";
-import { getUsableBoardRect, kerfCm, splitFreeRect } from "./kerfCalculator";
-import { binPackingStrategies } from "./binPacking";
-import { guillotineStrategy } from "./guillotineOptimizer";
-import { maxRectsStrategy } from "./maxRects";
-import { skylineStrategy } from "./skylineOptimizer";
-import { evaluateSolution, isBetterSolution } from "./boardEvaluator";
-import { generateCutSequence } from "./cutSequenceGenerator";
-import { calculateOptimizationStatistics } from "./statisticsEngine";
+import { OPTIMIZATION_MODES, DEFAULT_OPTIMIZER_SETTINGS } from "./optimizerConfig.js";
+import { getPieceOrientations } from "./rotationEngine.js";
+import { getUsableBoardRect, kerfCm, splitFreeRect } from "./kerfCalculator.js";
+import { binPackingStrategies } from "./binPacking.js";
+import { guillotineStrategy } from "./guillotineOptimizer.js";
+import { maxRectsStrategy } from "./maxRects.js";
+import { skylineStrategy } from "./skylineOptimizer.js";
+import { evaluateSolution, isBetterSolution } from "./boardEvaluator.js";
+import { generateCutSequence } from "./cutSequenceGenerator.js";
+import { calculateOptimizationStatistics } from "./statisticsEngine.js";
 
 const STRATEGIES = [...binPackingStrategies, guillotineStrategy, maxRectsStrategy, skylineStrategy];
 const EPSILON = .001;

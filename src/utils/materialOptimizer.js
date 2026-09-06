@@ -1,4 +1,4 @@
-import { optimizeCuts } from "./cuttingOptimizer";
+import { optimizeCuts } from "./cuttingOptimizer.js";
 
 export function optimizeMaterial(pieces, materialConfig, options = {}) {
   const materialPieces = pieces.filter((piece) => piece.material?.id === materialConfig.id);

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Edges } from "@react-three/drei";
+import { findManufacturingPiece } from "../utils/manufacturingGrid.js";
 
 const HARDBOARD = "#b98b5d";
 const EDGE_COLOR = "#49382d";
@@ -40,12 +41,21 @@ function createBackShape(width, height, entry) {
   return shape;
 }
 
-export default function CatHouse({ width, height, depth, thickness = 0.015, backThickness = 0.003, entry, color = "#8b5a2b" }) {
-  const backShape = useMemo(() => createBackShape(width, height, entry), [width, height, entry]);
+export default function CatHouse({ width, height, depth, thickness = 0.015, backThickness = 0.003, entry, color = "#8b5a2b", manufacturingPieces = [] }) {
+  const side = findManufacturingPiece(manufacturingPieces, "Lateral izquierdo");
+  const top = findManufacturingPiece(manufacturingPieces, "Tapa superior");
+  const back = findManufacturingPiece(manufacturingPieces, "Fondo trasero");
+  const sideHeight = (side?.length ?? (height * 100 - thickness * 200)) / 100;
+  const sideDepth = (side?.width ?? depth * 100) / 100;
+  const topWidth = (top?.length ?? width * 100) / 100;
+  const topDepth = (top?.width ?? depth * 100) / 100;
+  const backWidth = (back?.length ?? width * 100) / 100;
+  const backHeight = (back?.width ?? height * 100) / 100;
+  const backShape = useMemo(() => createBackShape(backWidth, backHeight, entry), [backWidth, backHeight, entry]);
   return <group>
-    {[-1, 1].map((side) => <Board key={side} position={[side * (width / 2 - thickness / 2), 0, 0]} dimensions={[thickness, height - thickness * 2, depth]} color={color} />)}
-    <Board position={[0, height / 2 - thickness / 2, 0]} dimensions={[width, thickness, depth]} color={color} />
-    <Board position={[0, -height / 2 + thickness / 2, 0]} dimensions={[width, thickness, depth]} color={color} />
+    {[-1, 1].map((direction) => <Board key={direction} position={[direction * (width / 2 - thickness / 2), 0, 0]} dimensions={[thickness, sideHeight, sideDepth]} color={color} />)}
+    <Board position={[0, height / 2 - thickness / 2, 0]} dimensions={[topWidth, thickness, topDepth]} color={color} />
+    <Board position={[0, -height / 2 + thickness / 2, 0]} dimensions={[topWidth, thickness, topDepth]} color={color} />
     <mesh position={[0, 0, -depth / 2 - backThickness - 0.0002]} castShadow receiveShadow>
       <extrudeGeometry args={[backShape, { depth: backThickness, bevelEnabled: false }]} />
       <meshStandardMaterial color={HARDBOARD} side={THREE.DoubleSide} />

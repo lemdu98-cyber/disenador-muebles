@@ -2,10 +2,11 @@ import { useRef } from "react";
 
 const COLORS = ["#e76f51", "#2a9d8f", "#457b9d", "#e9c46a", "#9b5de5", "#f4a261", "#43aa8b", "#577590"];
 
-export default function EditablePiece({ piece, board, boardRef, selected, invalid, onSelect, onDragMove, onDragEnd }) {
+export default function EditablePiece({ piece, board, boardRef, selected, invalid, issues = [], onSelect, onDragMove, onDragEnd }) {
   const drag = useRef(null);
   const color = COLORS[(piece.name.length + board.number) % COLORS.length];
   const onPointerDown = (event) => {
+    if (piece.locked && !piece.incremental) { onSelect(piece.id); return; }
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = { clientX: event.clientX, clientY: event.clientY, x: piece.x, y: piece.y };
@@ -28,7 +29,7 @@ export default function EditablePiece({ piece, board, boardRef, selected, invali
 
   return <button
     type="button"
-    className={`editable-piece${selected ? " selected" : ""}${invalid ? " invalid" : ""}`}
+    className={`editable-piece${selected ? " selected" : ""}${invalid || issues.length ? " invalid" : ""}${piece.locked && !piece.incremental ? " locked" : ""}`}
     style={{
       left: `${piece.x / board.lengthCm * 100}%`,
       top: `${piece.y / board.widthCm * 100}%`,
@@ -41,5 +42,5 @@ export default function EditablePiece({ piece, board, boardRef, selected, invali
     onPointerUp={finishDrag}
     onPointerCancel={finishDrag}
     title={`${piece.name}: ${piece.length.toFixed(1)} × ${piece.width.toFixed(1)} cm`}
-  ><span>{piece.name}</span><small>{piece.length.toFixed(1)} × {piece.width.toFixed(1)}</small></button>;
+  ><span>{piece.name}</span><small>{piece.length.toFixed(1)} × {piece.width.toFixed(1)}</small>{piece.locked && !piece.incremental && <small>Fijada</small>}{issues.map((issue) => <small className="piece-issue" key={issue}>{issue}</small>)}</button>;
 }

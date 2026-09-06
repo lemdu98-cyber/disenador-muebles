@@ -7,14 +7,14 @@ import { calculateNightstandStructure } from "./nightstandStructure.js";
 import { calculateDeskStructure } from "./deskStructure.js";
 import { calculateTvStandStructure } from "./tvStandStructure.js";
 import { calculateWardrobeStructure } from "./wardrobeStructure.js";
+import { resolveDrawerManufacturingWidth, snapCutDimensionWithConstraints, snapDistributedDimensions } from "./manufacturingGrid.js";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
-const safe = (value) => Math.max(0, Number(value.toFixed(2)));
-
 const addPieces = (pieces, name, quantity, length, width, material, details = {}) => {
+  const { lengthStrategy = "nearest", widthStrategy = "nearest", maxLengthCm = Infinity, maxWidthCm = Infinity, grainRequired = false, ...pieceDetails } = details;
   for (let index = 0; index < quantity; index += 1) {
-    const safeLength = safe(length);
-    const safeWidth = safe(width);
+    const safeLength = snapCutDimensionWithConstraints(length, { maxCm: maxLengthCm, preferredStrategy: lengthStrategy }) ?? 0;
+    const safeWidth = snapCutDimensionWithConstraints(width, { maxCm: maxWidthCm, preferredStrategy: widthStrategy }) ?? 0;
     pieces.push({
       id: `${material.id}-${name}-${index + 1}`,
       name,
@@ -23,7 +23,10 @@ const addPieces = (pieces, name, quantity, length, width, material, details = {}
       areaCm2: safeLength * safeWidth,
       material,
       grainDirection: "free",
-      ...details,
+      grainRequired: material.id === "melamine" ? Boolean(grainRequired) : false,
+      theoreticalLengthCm: length,
+      theoreticalWidthCm: width,
+      ...pieceDetails,
     });
   }
 };
@@ -85,47 +88,51 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
       mounting: "external",
     });
   } else if (furnitureType === "desk") {
-    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
-    addPieces(pieces, "Lateral izquierdo", 1, deskStructure.legHeightCm, depthCm, melamine);
-    addPieces(pieces, "Lateral derecho", 1, deskStructure.legHeightCm, depthCm, melamine);
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine, { grainRequired: true });
+    addPieces(pieces, "Lateral izquierdo", 1, deskStructure.legHeightCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: deskStructure.legHeightCm, grainRequired: true });
+    addPieces(pieces, "Lateral derecho", 1, deskStructure.legHeightCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: deskStructure.legHeightCm, grainRequired: true });
     addPieces(pieces, "Travesaño trasero", 1, innerWidth, deskStructure.rearCrossbarHeightCm, melamine, {
+      lengthStrategy: "floor", maxLengthCm: innerWidth,
       mounting: "structural-rear", location: "Parte posterior bajo la tapa", installation: "Atornillado entre ambos laterales",
     });
     if (drawers > 0) {
-      addPieces(pieces, "Divisor módulo de cajones", 1, deskStructure.legHeightCm, depthCm - thicknessCm, melamine);
+      addPieces(pieces, "Divisor módulo de cajones", 1, deskStructure.legHeightCm, depthCm - thicknessCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: deskStructure.legHeightCm, maxWidthCm: depthCm - thicknessCm });
       addPieces(pieces, "Refuerzo inferior módulo de cajones", 1, deskStructure.drawerOpeningWidthCm, deskStructure.moduleBraceHeightCm, melamine, {
+        lengthStrategy: "floor", maxLengthCm: deskStructure.drawerOpeningWidthCm,
         mounting: "structural-module", location: "Parte frontal inferior del módulo", installation: "Atornillado entre lateral y divisor",
       });
+      const drawerManufacturing = resolveDrawerManufacturingWidth({ openingWidthCm: deskStructure.drawerOpeningWidthCm, theoreticalBoxWidthCm: drawerDimensions.externalWidthCm, panelThicknessCm: thicknessCm, desiredClearanceCm: drawerDimensions.totalClearanceCm });
+      if (!drawerManufacturing.valid) return [];
       const bottom = calculateDrawerBottomDimensions({
-        externalWidth: drawerDimensions.externalWidthCm,
+        externalWidth: drawerManufacturing.boxWidthCm,
         externalDepth: deskStructure.drawerDepthCm,
         panelThickness: thicknessCm,
         bottomThickness: hardboard.thicknessMm / 10,
       });
       const frontNames = ["Frente cajón superior", "Frente cajón central", "Frente cajón inferior"];
       for (let index = 0; index < drawers; index += 1) {
-        addPieces(pieces, frontNames[index] || `Frente cajón ${index + 1}`, 1, deskStructure.drawerFrontWidthCm, deskStructure.drawerFrontHeightCm, melamine);
+        addPieces(pieces, frontNames[index] || `Frente cajón ${index + 1}`, 1, deskStructure.drawerFrontWidthCm, deskStructure.drawerFrontHeightCm, melamine, { grainRequired: true });
       }
-      addPieces(pieces, "Lateral izquierdo de cajón", drawers, deskStructure.drawerDepthCm, deskStructure.drawerSideHeightCm, melamine);
-      addPieces(pieces, "Lateral derecho de cajón", drawers, deskStructure.drawerDepthCm, deskStructure.drawerSideHeightCm, melamine);
-      addPieces(pieces, "Parte trasera de cajón", drawers, drawerDimensions.backWidthCm, deskStructure.drawerSideHeightCm, melamine);
+      addPieces(pieces, "Lateral izquierdo de cajón", drawers, deskStructure.drawerDepthCm, deskStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: deskStructure.drawerSideHeightCm });
+      addPieces(pieces, "Lateral derecho de cajón", drawers, deskStructure.drawerDepthCm, deskStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: deskStructure.drawerSideHeightCm });
+      addPieces(pieces, "Parte trasera de cajón", drawers, drawerManufacturing.backWidthCm, deskStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: deskStructure.drawerSideHeightCm, effectiveClearanceCm: drawerManufacturing.effectiveClearanceCm, clearanceDeltaCm: drawerManufacturing.clearanceDeltaCm });
       addPieces(pieces, "Base de cartón prensado del cajón", drawers, bottom.width, bottom.depth, hardboard, {
         location: bottom.location, installation: bottom.installation, mounting: bottom.mounting,
       });
     }
   } else if (furnitureType === "tvStand") {
     const structure = tvStandStructure;
-    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine);
-    addPieces(pieces, "Lateral izquierdo", 1, structure.sideHeightCm, depthCm, melamine);
-    addPieces(pieces, "Lateral derecho", 1, structure.sideHeightCm, depthCm, melamine);
-    addPieces(pieces, "Base inferior", 1, structure.innerWidthCm, depthCm, melamine);
-    if (structure.config.dividerEnabled) addPieces(pieces, "Divisor vertical central", 1, structure.dividerHeightCm, structure.shelfDepthCm, melamine);
+    addPieces(pieces, "Tapa superior", 1, widthCm, depthCm, melamine, { grainRequired: true });
+    addPieces(pieces, "Lateral izquierdo", 1, structure.sideHeightCm, depthCm, melamine, { grainRequired: true });
+    addPieces(pieces, "Lateral derecho", 1, structure.sideHeightCm, depthCm, melamine, { grainRequired: true });
+    addPieces(pieces, "Base inferior", 1, structure.innerWidthCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: structure.innerWidthCm });
+    if (structure.config.dividerEnabled) addPieces(pieces, "Divisor vertical central", 1, structure.dividerHeightCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.dividerHeightCm, maxWidthCm: structure.shelfDepthCm });
     if (structure.config.dividerEnabled) {
-      addPieces(pieces, "Repisa izquierda", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
-      addPieces(pieces, "Repisa derecha", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
+      addPieces(pieces, "Repisa izquierda", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.shelfSpanCm, maxWidthCm: structure.shelfDepthCm });
+      addPieces(pieces, "Repisa derecha", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.shelfSpanCm, maxWidthCm: structure.shelfDepthCm });
       addPieces(pieces, "Soporte vertical izquierdo", 1, structure.supportHeightCm, structure.supportDepthCm, melamine);
       addPieces(pieces, "Soporte vertical derecho", 1, structure.supportHeightCm, structure.supportDepthCm, melamine);
-    } else addPieces(pieces, "Repisa interior", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine);
+    } else addPieces(pieces, "Repisa interior", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.shelfSpanCm, maxWidthCm: structure.shelfDepthCm });
     if (structure.config.upperRearEnabled) addPieces(pieces, "Travesaño trasero superior", 1, structure.innerWidthCm, structure.upperRearHeightCm, melamine);
     if (structure.config.lowerRearEnabled) addPieces(pieces, "Travesaño trasero inferior", 1, structure.innerWidthCm, structure.lowerRearHeightCm, melamine);
     addPieces(pieces, "Fondo trasero completo", 1, widthCm, heightCm, hardboard, {
@@ -134,9 +141,9 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
       installation: "Clavado sobre todo el perímetro posterior",
     });
   } else if (furnitureType === "nightstand") {
-    addPieces(pieces, "Tapa superior", 1, widthCm, nightstandStructure.topDepthCm, melamine);
-    addPieces(pieces, "Laterales", 2, heightCm - thicknessCm, depthCm, melamine);
-    if (nightstandStructure.config.rearEnabled) addPieces(pieces, "Travesaño trasero inferior", 1, innerWidth, nightstandStructure.rearHeightCm, melamine);
+    addPieces(pieces, "Tapa superior", 1, widthCm, nightstandStructure.topDepthCm, melamine, { grainRequired: true });
+    addPieces(pieces, "Laterales", 2, heightCm - thicknessCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: heightCm - thicknessCm, grainRequired: true });
+    if (nightstandStructure.config.rearEnabled) addPieces(pieces, "Travesaño trasero inferior", 1, innerWidth, nightstandStructure.rearHeightCm, melamine, { lengthStrategy: "floor", maxLengthCm: innerWidth });
     if (nightstandStructure.config.frontEnabled) addPieces(
       pieces,
       "Travesaño frontal inferior",
@@ -145,16 +152,19 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
       nightstandStructure.frontHeightCm,
       melamine,
       {
+        lengthStrategy: "floor", maxLengthCm: innerWidth,
         mounting: "structural-front",
         location: "Parte frontal inferior, entre laterales",
         installation: `Altura estructural: ${nightstandStructure.frontHeightCm} cm · Separación mínima: ${nightstandStructure.safetyGapCm} cm`,
-        structuralHeightCm: nightstandStructure.frontHeightCm,
+        structuralHeightCm: nightstandStructure.frontHeightCm, grainRequired: true,
       },
     );
     addBackPanel();
     if (drawers > 0) {
-      const boxWidth = drawerDimensions.externalWidthCm;
-      const innerDrawerWidth = Math.max(8, boxWidth - thicknessCm * 2);
+      const drawerManufacturing = resolveDrawerManufacturingWidth({ openingWidthCm: innerWidth, theoreticalBoxWidthCm: drawerDimensions.externalWidthCm, panelThicknessCm: thicknessCm, desiredClearanceCm: drawerDimensions.totalClearanceCm });
+      if (!drawerManufacturing.valid) return [];
+      const boxWidth = drawerManufacturing.boxWidthCm;
+      const innerDrawerWidth = drawerManufacturing.backWidthCm;
       const bottom = calculateDrawerBottomDimensions({
         externalWidth: boxWidth,
         externalDepth: drawerDimensions.sideLengthCm,
@@ -163,48 +173,56 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
         panelThickness: thicknessCm,
         bottomThickness: hardboard.thicknessMm / 10,
       });
-      addPieces(pieces, "Frente de cajón", drawers, nightstandStructure.drawerFrontWidthCm, nightstandStructure.drawerFrontHeightCm, melamine);
-      addPieces(pieces, "Lateral izquierdo de cajón", drawers, drawerDimensions.sideLengthCm, nightstandStructure.drawerSideHeightCm, melamine);
-      addPieces(pieces, "Lateral derecho de cajón", drawers, drawerDimensions.sideLengthCm, nightstandStructure.drawerSideHeightCm, melamine);
-      addPieces(pieces, "Parte trasera de cajón", drawers, innerDrawerWidth, nightstandStructure.drawerSideHeightCm, melamine);
+      addPieces(pieces, "Frente de cajón", drawers, nightstandStructure.drawerFrontWidthCm, nightstandStructure.drawerFrontHeightCm, melamine, { grainRequired: true });
+      addPieces(pieces, "Lateral izquierdo de cajón", drawers, drawerDimensions.sideLengthCm, nightstandStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: nightstandStructure.drawerSideHeightCm });
+      addPieces(pieces, "Lateral derecho de cajón", drawers, drawerDimensions.sideLengthCm, nightstandStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: nightstandStructure.drawerSideHeightCm });
+      addPieces(pieces, "Parte trasera de cajón", drawers, innerDrawerWidth, nightstandStructure.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: nightstandStructure.drawerSideHeightCm, effectiveClearanceCm: drawerManufacturing.effectiveClearanceCm, clearanceDeltaCm: drawerManufacturing.clearanceDeltaCm });
       addPieces(pieces, "Base de cartón prensado del cajón", drawers, bottom.width, bottom.depth, hardboard, {
         location: bottom.location, installation: bottom.installation, mounting: bottom.mounting,
       });
     }
-    else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine);
+    else addPieces(pieces, "Repisa interior", 1, innerWidth, depthCm - thicknessCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: innerWidth, maxWidthCm: depthCm - thicknessCm });
   } else {
     const s = wardrobeStructure;
+    const sectionCutWidthsCm = snapDistributedDimensions(s.sectionWidthsCm, s.innerTotalWidthCm);
+    const drawerManufacturingByBody = s.sectionWidthsCm.map((openingWidthCm, bodyIndex) => resolveDrawerManufacturingWidth({ openingWidthCm, theoreticalBoxWidthCm: s.drawerBoxWidthsCm[bodyIndex], panelThicknessCm: thicknessCm, desiredClearanceCm: drawerDimensions.totalClearanceCm }));
+    if ([drawerManufacturingByBody[0], drawerManufacturingByBody[2]].some((result) => !result.valid)) return [];
     addPieces(pieces, s.isSlidingDoors ? "Tapa superior extendida" : "Tapa superior", 1, widthCm, s.topDepthCm, melamine);
-    addPieces(pieces, "Lateral izquierdo", 1, s.sideHeightCm, depthCm, melamine);
-    addPieces(pieces, "Lateral derecho", 1, s.sideHeightCm, depthCm, melamine);
-    addPieces(pieces, "Divisor vertical Cuerpo 1 / Cuerpo 2", 1, s.sideHeightCm, depthCm, melamine);
-    addPieces(pieces, "Divisor vertical Cuerpo 2 / Cuerpo 3", 1, s.sideHeightCm, depthCm, melamine);
+    addPieces(pieces, "Lateral izquierdo", 1, s.sideHeightCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: s.sideHeightCm, grainRequired: true });
+    addPieces(pieces, "Lateral derecho", 1, s.sideHeightCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: s.sideHeightCm, grainRequired: true });
+    addPieces(pieces, "Divisor vertical Cuerpo 1 / Cuerpo 2", 1, s.sideHeightCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: s.sideHeightCm });
+    addPieces(pieces, "Divisor vertical Cuerpo 2 / Cuerpo 3", 1, s.sideHeightCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: s.sideHeightCm });
     for (let body = 1; body <= 3; body += 1) {
-      addPieces(pieces, `Travesaño frontal inferior Cuerpo ${body}`, 1, s.openingWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-front", location: `Parte frontal inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales y apoyado al piso" });
-      addPieces(pieces, `Travesaño trasero inferior Cuerpo ${body}`, 1, s.openingWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-rear", location: `Parte trasera inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales, delante del fondo" });
-      addPieces(pieces, `Repisa superior Cuerpo ${body}`, 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-      if (s.isSlidingDoors) addPieces(pieces, `Puerta corrediza ${body}`, 1, s.slidingDoorHeightCm, s.slidingDoorWidthCm, melamine);
+      const bodyWidthCm = sectionCutWidthsCm[body - 1];
+      addPieces(pieces, `Travesaño frontal inferior Cuerpo ${body}`, 1, bodyWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-front", location: `Parte frontal inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales y apoyado al piso", grainRequired: true });
+      addPieces(pieces, `Travesaño trasero inferior Cuerpo ${body}`, 1, bodyWidthCm, s.lowerCrossbarHeightCm, melamine, { mounting: "structural-rear", location: `Parte trasera inferior del Cuerpo ${body}`, installation: "Atornillado entre paneles verticales, delante del fondo" });
+      addPieces(pieces, `Repisa superior Cuerpo ${body}`, 1, bodyWidthCm, depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+      if (s.isSlidingDoors) addPieces(pieces, `Puerta corrediza ${body}`, 1, s.slidingDoorHeightCm, s.slidingDoorWidthCm, melamine, { grainRequired: true });
       else {
-        addPieces(pieces, `Puerta superior Cuerpo ${body}`, 1, s.upperDoorHeightCm, s.doorWidthCm, melamine);
-        addPieces(pieces, `Puerta principal Cuerpo ${body}`, 1, s.mainDoorHeightsCm[body - 1], s.doorWidthCm, melamine);
+        addPieces(pieces, `Puerta superior Cuerpo ${body}`, 1, s.upperDoorHeightCm, s.doorWidthsCm[body - 1], melamine, { grainRequired: true });
+        addPieces(pieces, `Puerta principal Cuerpo ${body}`, 1, s.mainDoorHeightsCm[body - 1], s.doorWidthsCm[body - 1], melamine, { grainRequired: true });
       }
       addPieces(pieces, `Fondo cartón prensado Cuerpo ${body}`, 1, s.backLayouts[body - 1].widthCm, heightCm, hardboard, { mounting: "external-rear", location: `Parte posterior exterior del Cuerpo ${body}`, installation: "Clavado sobre el perímetro posterior correspondiente" });
     }
     if (s.isSlidingDoors) addPieces(pieces, "Soporte frontal inferior para riel", 1, widthCm, s.slidingLowerSupportHeightCm, melamine, { mounting: "sliding-track-support", location: "Frente inferior continuo", installation: "Atornillado sobre los cuatro paneles verticales para recibir el riel inferior" });
-    addPieces(pieces, "Repisa sobre cajones Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-    addPieces(pieces, "Repisa intermedia 1 Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-    addPieces(pieces, "Repisa intermedia 2 Cuerpo 1", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-    addPieces(pieces, "Repisa sobre cajones Cuerpo 3", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-    addPieces(pieces, "Repisa inferior zapatero Cuerpo 2", 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-    for (let shelf = 1; shelf <= shelves; shelf += 1) addPieces(pieces, `Repisa zapatos ${shelf} Cuerpo 2`, 1, s.openingWidthCm, depthCm - thicknessCm, melamine);
-    const front = calculateDrawerFrontDimensions({ boxWidthCm: s.drawerBoxWidthCm, boxFrontHeightCm: s.drawerFrontHeightCm, drawerFrontConfig });
-    const bottom = calculateDrawerBottomDimensions({ externalWidth: s.drawerBoxWidthCm, externalDepth: s.drawerDepthCm, panelThickness: thicknessCm, bottomThickness: hardboard.thicknessMm / 10 });
-    for (const body of [1, 3]) for (let drawer = 1; drawer <= 3; drawer += 1) {
-      addPieces(pieces, `Frente Cajón ${drawer} Cuerpo ${body}`, 1, front.widthCm, front.heightCm, melamine);
+    addPieces(pieces, "Repisa sobre cajones Cuerpo 1", 1, sectionCutWidthsCm[0], depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+    addPieces(pieces, "Repisa intermedia 1 Cuerpo 1", 1, sectionCutWidthsCm[0], depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+    addPieces(pieces, "Repisa intermedia 2 Cuerpo 1", 1, sectionCutWidthsCm[0], depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+    addPieces(pieces, "Repisa sobre cajones Cuerpo 3", 1, sectionCutWidthsCm[2], depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+    addPieces(pieces, "Repisa inferior zapatero Cuerpo 2", 1, sectionCutWidthsCm[1], depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+    for (let shelf = 1; shelf <= shelves; shelf += 1) addPieces(pieces, `Repisa zapatos ${shelf} Cuerpo 2`, 1, sectionCutWidthsCm[1], depthCm - thicknessCm, melamine, { widthStrategy: "floor", maxWidthCm: depthCm - thicknessCm });
+    for (const body of [1, 3]) {
+      const bodyIndex = body - 1;
+      const drawerManufacturing = drawerManufacturingByBody[bodyIndex];
+      const front = calculateDrawerFrontDimensions({ boxWidthCm: drawerManufacturing.boxWidthCm, boxFrontHeightCm: s.drawerFrontHeightCm, drawerFrontConfig });
+      const bottom = calculateDrawerBottomDimensions({ externalWidth: drawerManufacturing.boxWidthCm, externalDepth: s.drawerDepthCm, panelThickness: thicknessCm, bottomThickness: hardboard.thicknessMm / 10 });
+      for (let drawer = 1; drawer <= 3; drawer += 1) {
+      addPieces(pieces, `Frente Cajón ${drawer} Cuerpo ${body}`, 1, front.widthCm, front.heightCm, melamine, { grainRequired: true });
       addPieces(pieces, `Lateral izquierdo Cajón ${drawer} Cuerpo ${body}`, 1, s.drawerDepthCm, s.drawerSideHeightCm, melamine);
       addPieces(pieces, `Lateral derecho Cajón ${drawer} Cuerpo ${body}`, 1, s.drawerDepthCm, s.drawerSideHeightCm, melamine);
-      addPieces(pieces, `Parte trasera Cajón ${drawer} Cuerpo ${body}`, 1, s.drawerBackWidthCm, s.drawerSideHeightCm, melamine);
+      addPieces(pieces, `Parte trasera Cajón ${drawer} Cuerpo ${body}`, 1, drawerManufacturing.backWidthCm, s.drawerSideHeightCm, melamine, { widthStrategy: "floor", maxWidthCm: s.drawerSideHeightCm, effectiveClearanceCm: drawerManufacturing.effectiveClearanceCm, clearanceDeltaCm: drawerManufacturing.clearanceDeltaCm });
       addPieces(pieces, `Base cartón prensado Cajón ${drawer} Cuerpo ${body}`, 1, bottom.width, bottom.depth, hardboard, { location: bottom.location, installation: bottom.installation, mounting: bottom.mounting });
+      }
     }
   }
   return pieces;

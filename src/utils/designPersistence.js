@@ -32,6 +32,11 @@ function pick(source, keys) {
 export function serializeDesignConfig(state) {
   const fields = TYPE_FIELDS[state.furnitureType];
   if (!fields) throw new Error(`Tipo de mueble no compatible: ${state.furnitureType}.`);
+  const furniture = pick(state, fields.furniture);
+  if (state.furnitureType === "wardrobe") {
+    const normalized = normalizeWardrobeSectionWidthRatios(furniture.wardrobeConfig?.sectionWidthRatios ?? DEFAULT_WARDROBE_CONFIG.sectionWidthRatios);
+    furniture.wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig, sectionWidthRatios: normalized.ratios };
+  }
   return omitVisualState({
     dimensions: {
       widthCm: state.widthCm,
@@ -39,7 +44,7 @@ export function serializeDesignConfig(state) {
       depthCm: state.depthCm,
     },
     quantities: pick(state, fields.quantities),
-    furniture: pick(state, fields.furniture),
+    furniture,
     materials: {
       melamineThicknessMm: state.materialConfigs?.melamine?.thicknessMm,
       hardboardThicknessMm: state.materialConfigs?.hardboard?.thicknessMm,
@@ -51,10 +56,15 @@ export function deserializeDesignConfig(furnitureType, config) {
   const fields = TYPE_FIELDS[furnitureType];
   if (!fields) throw new Error(`Tipo de mueble no compatible: ${furnitureType}.`);
   const oldMaterials = config.materials || {};
+  const furniture = pick(config.furniture || {}, fields.furniture);
+  if (furnitureType === "wardrobe") {
+    const normalized = normalizeWardrobeSectionWidthRatios(furniture.wardrobeConfig?.sectionWidthRatios ?? DEFAULT_WARDROBE_CONFIG.sectionWidthRatios);
+    furniture.wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig, sectionWidthRatios: normalized.ratios };
+  }
   return {
     dimensions: config.dimensions,
     quantities: pick(config.quantities || {}, fields.quantities),
-    furniture: pick(config.furniture || {}, fields.furniture),
+    furniture,
     materialThicknesses: {
       melamine: oldMaterials.melamineThicknessMm ?? oldMaterials.melamine?.thicknessMm,
       hardboard: oldMaterials.hardboardThicknessMm ?? oldMaterials.hardboard?.thicknessMm,
@@ -71,3 +81,4 @@ export function assertSupportedDesign(design) {
   }
   return design;
 }
+import { DEFAULT_WARDROBE_CONFIG, normalizeWardrobeSectionWidthRatios } from "./wardrobeStructure.js";

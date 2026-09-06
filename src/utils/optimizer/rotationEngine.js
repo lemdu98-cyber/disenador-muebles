@@ -1,4 +1,4 @@
-import { canRotatePiece } from "./grainEngine";
+import { canRotatePiece } from "./grainEngine.js";
 
 export function getPieceOrientations(piece, settings) {
   const orientations = [{ length: piece.length, width: piece.width, rotated: false }];
