@@ -67,6 +67,7 @@ export default function App() {
   const [tvStandConfig, setTvStandConfig] = useState(DEFAULT_TV_STAND_CONFIG);
   const [wardrobeConfig, setWardrobeConfig] = useState(DEFAULT_WARDROBE_CONFIG);
   const [optimizerSettings, setOptimizerSettings] = useState(DEFAULT_OPTIMIZER_SETTINGS);
+  const [edgeBanding, setEdgeBanding] = useState({});
   const [drawerAdjustmentMessage, setDrawerAdjustmentMessage] = useState("");
   const [currentDesign, setCurrentDesign] = useState(null);
   const [designName, setDesignName] = useState("");
@@ -122,7 +123,7 @@ export default function App() {
   const wardrobeStructure = useMemo(() => calculateWardrobeStructure({ widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, bottomThicknessCm: hardboardThickness * 100, drawers, shelves, drawerDimensions, wardrobeConfig }), [widthCm, heightCm, depthCm, melamineThickness, hardboardThickness, drawers, shelves, drawerDimensions, wardrobeConfig]);
   const wardrobeValidationError = isWardrobe ? wardrobeStructure.error : "";
   const geometryValidationError = drawerValidationError || structureValidationError || deskValidationError || tvStandValidationError || wardrobeValidationError;
-  const designInputs = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, nightstandStructureConfig, deskConfig, tvStandConfig, wardrobeConfig };
+  const designInputs = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, nightstandStructureConfig, deskConfig, tvStandConfig, wardrobeConfig, edgeBanding };
   const generatedPieces = getCutPieces({ ...designInputs, materialConfigs });
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
@@ -141,6 +142,7 @@ export default function App() {
     setCurrentDesign(null);
     setDesignName("");
     setDesignMessage(null);
+    setEdgeBanding({});
   };
   const updateDimension = (setter, minimum = 1) => (event) => setter(Math.max(minimum, Number(event.target.value) || minimum));
   const updateDrawerCount = (event) => {
@@ -180,7 +182,7 @@ export default function App() {
   };
 
   const applyNormalizedConfiguration = (normalized) => {
-    const { furnitureType: type, dimensions, quantities = {}, furniture = {}, materialThicknesses = {}, useConstructiveDefaults = false } = normalized;
+    const { furnitureType: type, dimensions, quantities = {}, furniture = {}, materialThicknesses = {}, edgeBanding: restoredEdgeBanding = {}, useConstructiveDefaults = false } = normalized;
     setFurnitureType(type);
     setWidthCm(dimensions.widthCm);
     setHeightCm(dimensions.heightCm);
@@ -195,6 +197,7 @@ export default function App() {
     setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...(useConstructiveDefaults ? {} : furniture.deskConfig) });
     setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...(useConstructiveDefaults ? {} : furniture.tvStandConfig) });
     setWardrobeConfig({ ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig });
+    setEdgeBanding(restoredEdgeBanding);
     setMaterialConfigs((current) => ({
       melamine: { ...current.melamine, ...(materialThicknesses.melamine === undefined ? {} : { thicknessMm: materialThicknesses.melamine }) },
       hardboard: { ...current.hardboard, ...(materialThicknesses.hardboard === undefined ? {} : { thicknessMm: materialThicknesses.hardboard }) },
@@ -319,7 +322,11 @@ export default function App() {
         <OptimizerSettings settings={optimizerSettings} onChange={setOptimizerSettings} />
         <ManufacturingStatus error={designValidationError} warnings={drawerAdjustmentMessage ? [drawerAdjustmentMessage] : []} />
         <HardwareSummary items={hardwareItems} />
-        <CutList {...design} materialConfigs={materialConfigs} />
+        <CutList {...design} materialConfigs={materialConfigs} onEdgeBandingChange={(pieceIds, next) => setEdgeBanding((current) => {
+          const updated = { ...current };
+          pieceIds.forEach((id) => { updated[id] = next; });
+          return updated;
+        })} />
         <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
       </>}
     </aside>

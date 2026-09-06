@@ -1,4 +1,5 @@
 import { getCutPieces, getFurnitureLabel } from "./cutPieces.js";
+import { edgeBandingKey } from "./edgeBanding.js";
 
 export const FURNITURE_TYPES = ["wardrobe", "desk", "tvStand", "nightstand", "catHouse"];
 
@@ -38,7 +39,7 @@ export function groupPiecesByFurniture(orderItems, materialConfigs) {
   return orderItems.filter((item) => item.quantity).map((item) => {
     const pieces = getCutPieces({ ...item.params, materialConfigs });
     const groups = Object.values(pieces.reduce((result, piece) => {
-      const key = `${piece.name}|${piece.length}|${piece.width}|${piece.grainRequired}`;
+      const key = `${piece.name}|${piece.length}|${piece.width}|${piece.grainRequired}|${edgeBandingKey(piece.edgeBanding)}`;
       (result[key] ||= []).push(piece);
       return result;
     }, {}));
@@ -50,7 +51,7 @@ export function consolidatePieces(pieces) {
   return Object.values(pieces.reduce((result, piece) => {
     const length = Number(piece.length.toFixed(1));
     const width = Number(piece.width.toFixed(1));
-    const key = `${piece.material.id}|${piece.material.thicknessMm}|${length}|${width}|${piece.grainRequired}`;
+    const key = `${piece.material.id}|${piece.material.thicknessMm}|${length}|${width}|${piece.grainRequired}|${edgeBandingKey(piece.edgeBanding)}`;
     (result[key] ||= { length, width, quantity: 0, areaCm2: length * width, names: new Set(), material: piece.material, grainRequired: piece.grainRequired });
     result[key].quantity += 1;
     result[key].names.add(piece.name);

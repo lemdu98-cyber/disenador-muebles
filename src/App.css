@@ -118,6 +118,24 @@ li + li { margin-top: 7px; }
 .cut-list-material + .cut-list-material { margin-top: 14px; padding-top: 12px; border-top: 2px solid #e7dbce; }
 .cut-list-material h3, .material-cost-block h3 { margin: 0 0 7px; color: #5c3820; font-size: 12px; }
 .cut-piece-row + .cut-piece-row { border-top: 1px solid #f0e6dc; }
+.cut-piece-row.selected { background: #fff8e8; }
+.cut-piece-select { padding: 0; border: 0; color: #5c3820; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.cut-piece-select:disabled { color: inherit; cursor: default; }
+.edge-total { display: grid; gap: 5px; margin: 10px 0 14px; padding: 10px; border-radius: 7px; background: #f8f2ea; font-size: 11px; }
+.edge-total div { display: flex; justify-content: space-between; gap: 10px; }
+.edge-editor-panel { margin: 12px 0 18px; padding: 12px; border: 1px solid #d9c9b8; border-radius: 8px; background: #fffdf9; }
+.edge-editor-panel h3, .edge-editor-panel p { margin: 0 0 5px; }
+.edge-editor { position: relative; width: min(210px, 75%); aspect-ratio: 1.55; margin: 34px auto; border: 2px solid #8e8177; background: #f4e6d5; }
+.edge-piece-label { position: absolute; inset: 0; display: grid; place-items: center; color: #7a695c; font-size: 11px; font-weight: 800; pointer-events: none; }
+.edge-side { position: absolute; z-index: 1; border: 0; background: transparent; color: #8c2f20; font-size: 9px; font-weight: 900; cursor: pointer; }
+.edge-side.enabled::after { position: absolute; content: ""; background: #8c2f20; }
+.edge-top, .edge-bottom { left: -2px; width: calc(100% + 4px); height: 30px; }.edge-top { bottom: 100%; }.edge-bottom { top: 100%; }
+.edge-left, .edge-right { top: -2px; width: 42px; height: calc(100% + 4px); writing-mode: vertical-rl; }.edge-left { right: 100%; }.edge-right { left: 100%; }
+.edge-top.enabled::after, .edge-bottom.enabled::after { left: 0; width: 100%; height: 5px; }.edge-top.enabled::after { bottom: 0; }.edge-bottom.enabled::after { top: 0; }
+.edge-left.enabled::after, .edge-right.enabled::after { top: 0; width: 5px; height: 100%; }.edge-left.enabled::after { right: 0; }.edge-right.enabled::after { left: 0; }
+.edge-editor-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }.edge-editor-actions button { padding: 6px 8px; }
+.board-edge-label { position: absolute; z-index: 2; color: #fff; font-size: clamp(5px, 1vw, 9px); font-style: normal; font-weight: 900; line-height: 1; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px rgb(0 0 0 / 70%); }
+.board-edge-label-top { top: 2px; left: 50%; transform: translateX(-50%); }.board-edge-label-bottom { bottom: 2px; left: 50%; transform: translateX(-50%); }.board-edge-label-left, .board-edge-label-right { top: 50%; writing-mode: vertical-rl; transform: translateY(-50%); }.board-edge-label-left { left: 2px; }.board-edge-label-right { right: 2px; }
 .cut-piece-details { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 0 0 7px; color: #7a695c; font-size: 10px; }
 .material-boards { margin-top: 18px; border-top: 4px solid #8b5a2b; }
 .material-hardboard { border-top-color: #b98b5d; }

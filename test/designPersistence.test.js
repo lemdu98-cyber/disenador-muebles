@@ -80,3 +80,10 @@ test("deserializa el formato anterior e ignora configuraciones ajenas", () => {
 test("rechaza versiones futuras", () => {
   assert.throws(() => assertSupportedDesign({ schema_version: 2, config: {} }), /no compatible/);
 });
+
+test("persiste canteado por ID estable y los diseños antiguos usan configuración vacía", () => {
+  const edgeBanding = { "melamine-Frente de cajón-1": { top: true, right: false, bottom: true, left: false } };
+  const config = serializeDesignConfig({ ...state, edgeBanding });
+  assert.deepEqual(deserializeDesignConfig("nightstand", config).edgeBanding, edgeBanding);
+  assert.deepEqual(deserializeDesignConfig("nightstand", { dimensions: {}, quantities: {}, furniture: {}, materials: {} }).edgeBanding, {});
+});

@@ -1,4 +1,5 @@
 export const DESIGN_SCHEMA_VERSION = 1;
+import { sanitizeEdgeBandingConfig } from "./edgeBanding.js";
 
 const VISUAL_ONLY_KEYS = new Set([
   "showOpenDrawers",
@@ -49,6 +50,7 @@ export function serializeDesignConfig(state) {
       melamineThicknessMm: state.materialConfigs?.melamine?.thicknessMm,
       hardboardThicknessMm: state.materialConfigs?.hardboard?.thicknessMm,
     },
+    edgeBanding: sanitizeEdgeBandingConfig(state.edgeBanding),
   });
 }
 
@@ -69,6 +71,7 @@ export function deserializeDesignConfig(furnitureType, config) {
       melamine: oldMaterials.melamineThicknessMm ?? oldMaterials.melamine?.thicknessMm,
       hardboard: oldMaterials.hardboardThicknessMm ?? oldMaterials.hardboard?.thicknessMm,
     },
+    edgeBanding: sanitizeEdgeBandingConfig(config.edgeBanding),
   };
 }
 

@@ -8,6 +8,7 @@ import { calculateDeskStructure } from "./deskStructure.js";
 import { calculateTvStandStructure } from "./tvStandStructure.js";
 import { calculateWardrobeStructure } from "./wardrobeStructure.js";
 import { resolveDrawerManufacturingWidth, snapCutDimensionWithConstraints, snapDistributedDimensions } from "./manufacturingGrid.js";
+import { validateEdgeBanding } from "./edgeBanding.js";
 
 export const MELAMINE_BOARD = { lengthCm: 275, widthCm: 185, thicknessMm: 15, price: 605 };
 const addPieces = (pieces, name, quantity, length, width, material, details = {}) => {
@@ -32,7 +33,7 @@ const addPieces = (pieces, name, quantity, length, width, material, details = {}
 };
 
 /** Complete manufacturing list. Dimensions are centimetres and each piece owns its material. */
-export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig, deskConfig, tvStandConfig, wardrobeConfig }) {
+export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawers, shelves, materialConfigs, drawerSlideConfig, drawerFrontConfig, nightstandStructureConfig, deskConfig, tvStandConfig, wardrobeConfig, edgeBanding = {} }) {
   const pieces = [];
   const melamine = materialConfigs?.melamine || MATERIALS.MELAMINE;
   const hardboard = materialConfigs?.hardboard || MATERIALS.HARDBOARD;
@@ -225,7 +226,9 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
       }
     }
   }
-  return pieces;
+  return pieces.map((piece) => piece.material.id === "melamine"
+    ? { ...piece, edgeBanding: validateEdgeBanding(edgeBanding[piece.id]) }
+    : piece);
 }
 
 export const getFurnitureLabel = (type) => ({ wardrobe: "Ropero", desk: "Escritorio", tvStand: "Mueble TV", nightstand: "Mesa de noche", catHouse: "Casa para Gatos" }[type] || "Mueble");

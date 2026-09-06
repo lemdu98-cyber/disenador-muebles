@@ -1,5 +1,6 @@
 const COLORS = ["#E76F51", "#2A9D8F", "#457B9D", "#E9C46A", "#9B5DE5", "#F4A261", "#43AA8B", "#577590"];
 const EXPORT_WIDTH = 3200;
+import { getEdgeBandingLabels } from "./edgeBanding.js";
 
 function pieceColor(piece, boardNumber) {
   return COLORS[(piece.name.length + boardNumber) % COLORS.length];
@@ -10,6 +11,33 @@ function roundedRect(context, x, y, width, height, radius) {
   context.roundRect(x, y, width, height, radius);
   context.fill();
   context.stroke();
+}
+
+export function drawEdgeBandingLabels(context, piece, x, y, width, height) {
+  const labels = getEdgeBandingLabels(piece);
+  if (!labels.length || width < 5 || height < 5) return;
+  context.save();
+  context.beginPath();
+  context.rect(x, y, width, height);
+  context.clip();
+  context.fillStyle = "#FFFFFF";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  labels.forEach(({ side, orientation, text }) => {
+    const availableLength = orientation === "horizontal" ? width : height;
+    const availableDepth = orientation === "horizontal" ? height : width;
+    const fontSize = Math.max(7, Math.min(30, availableLength / 4.2, availableDepth / 3));
+    const inset = Math.max(fontSize * .65, 4);
+    const textX = side === "left" ? x + inset : side === "right" ? x + width - inset : x + width / 2;
+    const textY = side === "top" ? y + inset : side === "bottom" ? y + height - inset : y + height / 2;
+    context.save();
+    context.translate(textX, textY);
+    if (orientation === "vertical") context.rotate(-Math.PI / 2);
+    context.font = `700 ${fontSize}px Arial, sans-serif`;
+    context.fillText(text, 0, 0, Math.max(4, availableLength - 4));
+    context.restore();
+  });
+  context.restore();
 }
 
 /** Generates a print-ready PNG directly from optimizer coordinates; it never captures the DOM. */
@@ -69,6 +97,7 @@ export function downloadBoardImage(board) {
     context.strokeStyle = "#FFFFFF";
     context.lineWidth = 5;
     context.strokeRect(pieceX, pieceY, pieceWidth, pieceHeight);
+    drawEdgeBandingLabels(context, piece, pieceX, pieceY, pieceWidth, pieceHeight);
     const shortSide = Math.min(pieceWidth, pieceHeight);
     if (shortSide < 52) return;
     const fontSize = Math.max(20, Math.min(42, shortSide / 4.2));
