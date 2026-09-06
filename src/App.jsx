@@ -270,7 +270,7 @@ export default function App() {
       </div>
       <p className="subtitle">Diseño y presupuesto para carpintería</p>
       <button type="button" className="image-import-launch" onClick={() => setImageImporterOpen(true)}>Crear desde imagen</button>
-      <FurnitureImageImporter open={imageImporterOpen} onCancel={() => setImageImporterOpen(false)} onApply={applyImageDesign} validateConstructiveProposal={validateConstructiveProposal} />
+      <FurnitureImageImporter open={imageImporterOpen} onCancel={() => setImageImporterOpen(false)} onApply={applyImageDesign} validateConstructiveProposal={validateConstructiveProposal} melamineThicknessMm={materialConfigs.melamine.thicknessMm} />
       <section className="design-actions" aria-label="Persistencia de diseños">
         <label>Nombre del diseño<input type="text" maxLength="160" placeholder={`${MODELS[furnitureType].label} sin nombre`} value={designName} onChange={(event) => setDesignName(event.target.value)} /></label>
         <div>

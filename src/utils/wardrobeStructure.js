@@ -1,5 +1,6 @@
 import { calculateDrawerOpenOffsetCm } from "./drawerVisualization.js";
 import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "./drawerLimits.js";
+import { snapDistributedDimensions } from "./manufacturingGrid.js";
 
 export const WARDROBE_LIMITS = { shoeShelves: { min: 2, default: 3, max: 5 }, fixedDrawersPerBody: 3 };
 export const SHOE_BOTTOM_SHELF_CLEARANCE_CM = 1;
@@ -44,8 +45,9 @@ export function normalizeWardrobeSectionWidthRatios(value) {
 export function getWardrobeSectionGeometry({ widthCm, thicknessCm, sectionWidthRatios }) {
   const normalized = normalizeWardrobeSectionWidthRatios(sectionWidthRatios ?? DEFAULT_WARDROBE_SECTION_WIDTH_RATIOS);
   const innerTotalWidthCm = Math.max(0, num(widthCm) - num(thicknessCm) * 4);
-  const sectionWidthsCm = normalized.ratios.map((ratio) => innerTotalWidthCm * ratio);
-  sectionWidthsCm[2] = innerTotalWidthCm - sectionWidthsCm[0] - sectionWidthsCm[1];
+  const theoreticalSectionWidthsCm = normalized.ratios.map((ratio) => innerTotalWidthCm * ratio);
+  theoreticalSectionWidthsCm[2] = innerTotalWidthCm - theoreticalSectionWidthsCm[0] - theoreticalSectionWidthsCm[1];
+  const sectionWidthsCm = snapDistributedDimensions(theoreticalSectionWidthsCm, innerTotalWidthCm);
   const leftInnerEdgeCm = -num(widthCm) / 2 + num(thicknessCm);
   const sectionStartXCm = [leftInnerEdgeCm];
   sectionStartXCm[1] = sectionStartXCm[0] + sectionWidthsCm[0] + num(thicknessCm);
@@ -53,7 +55,7 @@ export function getWardrobeSectionGeometry({ widthCm, thicknessCm, sectionWidthR
   const bodyCentersXCm = sectionStartXCm.map((start, index) => start + sectionWidthsCm[index] / 2);
   const dividerPositionsCm = [sectionStartXCm[1] - num(thicknessCm) / 2, sectionStartXCm[2] - num(thicknessCm) / 2];
   const panelCentersXCm = [-num(widthCm) / 2 + num(thicknessCm) / 2, ...dividerPositionsCm, num(widthCm) / 2 - num(thicknessCm) / 2];
-  return { innerTotalWidthCm, sectionWidthsCm, sectionStartXCm, bodyCentersXCm, dividerPositionsCm, panelCentersXCm, sectionWidthRatios: normalized.ratios, ratiosValid: normalized.valid, ratioError: normalized.error };
+  return { innerTotalWidthCm, theoreticalSectionWidthsCm, sectionWidthsCm, sectionStartXCm, bodyCentersXCm, dividerPositionsCm, panelCentersXCm, sectionWidthRatios: normalized.ratios, ratiosValid: normalized.valid, ratioError: normalized.error };
 }
 
 export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thicknessCm, bottomThicknessCm = .3, shelves = 3, drawerDimensions, wardrobeConfig }) {

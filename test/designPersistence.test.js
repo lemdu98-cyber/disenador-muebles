@@ -87,3 +87,11 @@ test("persiste canteado por ID estable y los diseños antiguos usan configuraci�
   assert.deepEqual(deserializeDesignConfig("nightstand", config).edgeBanding, edgeBanding);
   assert.deepEqual(deserializeDesignConfig("nightstand", { dimensions: {}, quantities: {}, furniture: {}, materials: {} }).edgeBanding, {});
 });
+
+test("persiste ratios asimétricos 20/35/45 junto al canteado", () => {
+  const edgeBanding = { "melamine-Frente Cajón 1 Cuerpo 1-1": { top: true, right: false, bottom: false, left: false } };
+  const config = serializeDesignConfig({ ...state, furnitureType: "wardrobe", wardrobeConfig: { sectionWidthRatios: [20, 35, 45] }, edgeBanding });
+  const restored = deserializeDesignConfig("wardrobe", config);
+  assert.deepEqual(restored.furniture.wardrobeConfig.sectionWidthRatios, [.2, .35, .45]);
+  assert.deepEqual(restored.edgeBanding, edgeBanding);
+});

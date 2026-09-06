@@ -81,3 +81,22 @@ test("el ropero incorpora sectionLayout sin convertirlo en piezas", () => {
   assert.equal(normalized.furniture.sectionLayout, undefined);
   assert.deepEqual(normalized.furniture.wardrobeConfig.sectionWidthRatios, [.3, .4, .3]);
 });
+
+test("flujo asimétrico ordena derecha/izquierda/centro y aplica 20/35/45", () => {
+  const annotations = [section("right", .55, .45), section("left", 0, .2), section("center", .2, .35)];
+  const proposal = annotationsToFurnitureProposal({ detectedType: "wardrobe", dimensions, annotations: [
+    ...annotations,
+    ...Array.from({ length: 3 }, (_, index) => element(`door-${index}`, "door", [.02, .22, .57][index], .1, [.16, .31, .41][index], .75)),
+    ...Array.from({ length: 6 }, (_, index) => element(`drawer-${index}`, "drawer", index < 3 ? .03 : .7, .55 + (index % 3) * .1, .12, .06)),
+    ...Array.from({ length: 3 }, (_, index) => element(`shelf-${index}`, "shelf", .25, .3 + index * .08, .2, .02)),
+  ] });
+  assert.deepEqual(proposal.structure.sectionLayout.map(({ annotationId }) => annotationId), ["left", "center", "right"]);
+  assert.deepEqual(proposalToNormalizedConfig(proposal).furniture.wardrobeConfig.sectionWidthRatios, [.2, .35, .45]);
+});
+
+test("un layout de tres cuerpos con huecos no se aplica parcialmente", () => {
+  const proposal = annotationsToFurnitureProposal({ detectedType: "wardrobe", dimensions, annotations: [section("a", 0, .2), section("b", .35, .25), section("c", .7, .3)] });
+  proposal.structure.doors = 3; proposal.structure.drawers = 6; proposal.structure.shelves = 3;
+  assert.equal(proposal.structure.layoutCanNormalizeSections, false);
+  assert.throws(() => proposalToNormalizedConfig(proposal), /sin huecos/);
+});

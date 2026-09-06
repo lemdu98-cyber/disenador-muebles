@@ -55,7 +55,7 @@ test("genera Mesa de Noche manual con dos cajones", () => {
 
 test("genera Ropero manual con 3 cuerpos, 6 cajones, 3 puertas y 3 repisas", () => {
   const annotations = [
-    ...Array.from({ length: 3 }, (_, index) => mark(`section-${index}`, "section")),
+    ...Array.from({ length: 3 }, (_, index) => mark(`section-${index}`, "section", index / 3, .05, 1 / 3, .9)),
     ...Array.from({ length: 6 }, (_, index) => mark(`drawer-${index}`, "drawer")),
     ...Array.from({ length: 3 }, (_, index) => mark(`door-${index}`, "door")),
     ...Array.from({ length: 3 }, (_, index) => mark(`shelf-${index}`, "shelf", .1, .5 + index * .01, .4, .005)),

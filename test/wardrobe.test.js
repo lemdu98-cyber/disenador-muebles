@@ -7,6 +7,7 @@ import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG, getWardrobeSectionGeometry, normalizeWardrobeSectionWidthRatios, SHOE_BOTTOM_SHELF_CLEARANCE_CM } from "../src/utils/wardrobeStructure.js";
 import { calculateLeftHingedDoorTransform, HINGED_DOOR_OPEN_ANGLE_RAD } from "../src/utils/wardrobeDoors.js";
 import { calculateHingePositionsCm, getHardwareItems, hingesForDoorHeight } from "../src/utils/hardware.js";
+import { optimizeAllMaterials } from "../src/utils/materialOptimizer.js";
 
 const design = { furnitureType: "wardrobe", widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, wardrobeConfig: DEFAULT_WARDROBE_CONFIG };
 const rounded = (values) => values.map((value) => Number(value.toFixed(6)));
@@ -20,8 +21,8 @@ test("default wardrobe calculates three equal useful bodies", () => {
   const structure = structureFor();
   assert.equal(structure.valid, true);
   assert.equal(structure.sideHeightCm, 228.5);
-  assert.equal(structure.openingWidthCm, 244 / 3);
-  assert.deepEqual(rounded(structure.sectionWidthsCm), rounded([244 / 3, 244 / 3, 244 / 3]));
+  assert.equal(structure.openingWidthCm, 81.5);
+  assert.deepEqual(structure.sectionWidthsCm, [81.5, 81, 81.5]);
   assert.equal(structure.panelCentersXCm.length, 4);
   assert.equal(structure.drawerLayouts.length, 6);
   assert.equal(structure.shoeShelfYCentersCm.length, 3);
@@ -32,9 +33,10 @@ test("default wardrobe calculates three equal useful bodies", () => {
 test("30/40/30 uses the clear width after four panels and positions dividers cumulatively", () => {
   const geometry = getWardrobeSectionGeometry({ widthCm: 250, thicknessCm: 1.5, sectionWidthRatios: [30, 40, 30] });
   assert.equal(geometry.innerTotalWidthCm, 244);
-  assert.deepEqual(rounded(geometry.sectionWidthsCm), [73.2, 97.6, 73.2]);
-  assert.deepEqual(rounded(geometry.dividerPositionsCm), [-49.55, 49.55]);
-  assert.deepEqual(rounded(geometry.bodyCentersXCm), [-86.9, 0, 86.9]);
+  assert.deepEqual(rounded(geometry.theoreticalSectionWidthsCm), [73.2, 97.6, 73.2]);
+  assert.deepEqual(geometry.sectionWidthsCm, [73.5, 97.5, 73]);
+  assert.deepEqual(geometry.dividerPositionsCm, [-49.25, 49.75]);
+  assert.deepEqual(geometry.bodyCentersXCm, [-86.75, .25, 87]);
   assert.ok(Math.abs(geometry.sectionWidthsCm.reduce((sum, width) => sum + width, 0) - geometry.innerTotalWidthCm) < 1e-9);
 });
 
@@ -51,15 +53,15 @@ test("variable bodies propagate to shelves, crossbars, hinged doors, backs and d
   const structure = structureFor({ wardrobeConfig });
   const materialConfigs = createMaterialConfig();
   const pieces = getCutPieces({ ...design, wardrobeConfig, materialConfigs });
-  assert.deepEqual(rounded(structure.sectionWidthsCm), [61, 85.4, 97.6]);
-  assert.deepEqual(rounded(structure.drawerBoxWidthsCm), [58.46, 82.86, 95.06]);
+  assert.deepEqual(structure.sectionWidthsCm, [61, 85.5, 97.5]);
+  assert.deepEqual(rounded(structure.drawerBoxWidthsCm), [58.46, 82.96, 94.96]);
   assert.deepEqual(rounded(structure.doorWidthsCm), [62.25, 87.15, 99.6]);
   assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Travesaño frontal inferior Cuerpo ${body}`).length), [61, 85.5, 97.5]);
   assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Repisa superior Cuerpo ${body}`).length), [61, 85.5, 97.5]);
   assert.deepEqual([1, 2, 3].map((body) => pieces.find((piece) => piece.name === `Puerta superior Cuerpo ${body}`).width), [62.5, 87, 99.5]);
   assert.notEqual(pieces.find((piece) => piece.name === "Parte trasera Cajón 1 Cuerpo 1").length, pieces.find((piece) => piece.name === "Parte trasera Cajón 1 Cuerpo 3").length);
   assert.notEqual(pieces.find((piece) => piece.name === "Base cartón prensado Cajón 1 Cuerpo 1").length, pieces.find((piece) => piece.name === "Base cartón prensado Cajón 1 Cuerpo 3").length);
-  assert.deepEqual(rounded(structure.backLayouts.map(({ widthCm }) => widthCm)), [63.25, 86.9, 99.85]);
+  assert.deepEqual(rounded(structure.backLayouts.map(({ widthCm }) => widthCm)), [63.25, 87, 99.75]);
   assert.equal(validateAllFurniturePieces(pieces, materialConfigs).valid, true);
 });
 
@@ -220,4 +222,25 @@ test("invalid hanging and shoe spacing configurations are rejected", () => {
   const structure = structureFor({ shelves: 5, wardrobeConfig });
   assert.equal(structure.valid, false);
   assert.match(structure.error, /zapatero quedarían demasiado juntas/);
+});
+
+test("20/35/45 closes the asymmetric manufacturing flow without hidden thirds", () => {
+  const edgeBanding = { "melamine-Frente Cajón 1 Cuerpo 1-1": { top: true } };
+  const wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [20, 35, 45] };
+  const structure = structureFor({ wardrobeConfig });
+  const materialConfigs = createMaterialConfig();
+  const pieces = getCutPieces({ ...design, wardrobeConfig, materialConfigs, edgeBanding });
+  const named = (name) => pieces.find((piece) => piece.name === name);
+  assert.deepEqual(structure.sectionWidthsCm, [49, 85.5, 109.5]);
+  assert.deepEqual(structure.dividerPositionsCm, [-73.75, 13.25]);
+  assert.equal(structure.sectionWidthsCm.reduce((sum, value) => sum + value, 0), 244);
+  assert.deepEqual([1, 2, 3].map((body) => named(`Travesaño frontal inferior Cuerpo ${body}`).length), [49, 85.5, 109.5]);
+  assert.deepEqual([named("Frente Cajón 1 Cuerpo 1").length, named("Frente Cajón 1 Cuerpo 3").length], [49, 109.5]);
+  assert.deepEqual([named("Puerta principal Cuerpo 1").width, named("Puerta principal Cuerpo 3").width], [50, 112]);
+  assert.deepEqual([1, 2, 3].map((body) => named(`Fondo cartón prensado Cuerpo ${body}`).length), [51.5, 87, 112]);
+  assert.equal(named("Frente Cajón 1 Cuerpo 1").edgeBanding.top, true);
+  assert.equal(named("Frente Cajón 1 Cuerpo 3").edgeBanding.top, false);
+  const optimized = optimizeAllMaterials(pieces, materialConfigs);
+  assert.equal(optimized.melamine.unplaced.length, 0);
+  assert.equal(optimized.hardboard.unplaced.length, 0);
 });

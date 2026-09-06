@@ -23,6 +23,9 @@ export function validateFurnitureProposal(proposal) {
     if (Number(proposal.structure.sections) !== 3) errors.push("El ropero actual utiliza exactamente 3 cuerpos.");
     if (Number(proposal.structure.doors) !== 3) errors.push("El ropero actual utiliza exactamente 3 puertas.");
     if (drawers !== 6) errors.push("El ropero actual utiliza 6 cajones fijos.");
+    if (proposal.structure.sectionLayout && (proposal.structure.sectionLayout.length !== 3 || proposal.structure.layoutCanNormalizeSections !== true)) {
+      errors.push("Las 3 secciones deben cubrir el frente sin huecos, solapamientos ni límites ambiguos antes de aplicar el diseño.");
+    }
     if (!Number.isInteger(shelves) || shelves < WARDROBE_LIMITS.shoeShelves.min || shelves > WARDROBE_LIMITS.shoeShelves.max) {
       errors.push(`Las repisas deben estar entre ${WARDROBE_LIMITS.shoeShelves.min} y ${WARDROBE_LIMITS.shoeShelves.max}.`);
     }
@@ -49,7 +52,7 @@ export function proposalToNormalizedConfig(proposal) {
     quantities.shelves = Number(proposal.structure.shelves);
   }
   const furniture = {};
-  if (proposal.detectedType === "wardrobe" && proposal.structure.layoutQuality !== "invalid" && proposal.structure.sectionLayout?.length === 3) {
+  if (proposal.detectedType === "wardrobe" && proposal.structure.layoutCanNormalizeSections === true && proposal.structure.sectionLayout?.length === 3) {
     const normalizedRatios = normalizeWardrobeSectionWidthRatios(proposal.structure.sectionLayout.map(({ widthRatio }) => widthRatio));
     if (normalizedRatios.valid) furniture.wardrobeConfig = { sectionWidthRatios: normalizedRatios.ratios };
   }

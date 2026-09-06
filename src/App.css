@@ -153,6 +153,7 @@ li + li { margin-top: 7px; }
 .wardrobe-width-summary { display: grid; gap: 5px; margin: 8px 0; }.wardrobe-width-summary span { display: flex; justify-content: space-between; gap: 8px; padding: 6px; border-radius: 5px; background: #fff; color: #6c5a4c; font-size: 11px; }.wardrobe-width-summary b { color: #4d321f; }
 .validation-error, .blocked-card { color: #a32d22 !important; }
 .configuration-warning { margin: 7px 0; color: #8a5b00; font-size: 11px; font-weight: 700; }
+.image-ratio-summary { display: grid; gap: 5px; margin: 12px 0; padding: 11px; border: 1px solid #d7c19f; border-radius: 7px; background: #fff8e8; font-size: 12px; }.image-ratio-summary span { display: flex; justify-content: space-between; gap: 10px; }.image-ratio-summary p { margin: 4px 0 0; color: #795500; font-weight: 700; }
 .manufacturing-status { display: grid; gap: 6px; margin-top: 20px; padding: 12px; border: 1px solid; border-radius: 8px; font-size: 12px; }
 .manufacturing-status p { margin: 0; }
 .manufacturing-status-valid { color: #17653a; border-color: #a9d9bd; background: #effaf3; }
