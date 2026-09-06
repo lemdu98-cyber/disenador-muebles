@@ -195,7 +195,7 @@ export default function App() {
     setCatHouseConfig((current) => ({ ...current, ...(useConstructiveDefaults ? {} : furniture.catHouseConfig) }));
     setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...(useConstructiveDefaults ? {} : furniture.nightstandStructureConfig) });
     setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig });
-    setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...(useConstructiveDefaults ? {} : furniture.tvStandConfig) });
+    setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig });
     setWardrobeConfig({ ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig });
     setEdgeBanding(restoredEdgeBanding);
     setMaterialConfigs((current) => ({
@@ -218,7 +218,7 @@ export default function App() {
         drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG,
         nightstandStructureConfig: DEFAULT_NIGHTSTAND_STRUCTURE,
         deskConfig: { ...DEFAULT_DESK_CONFIG, ...normalized.furniture.deskConfig },
-        tvStandConfig: DEFAULT_TV_STAND_CONFIG,
+        tvStandConfig: { ...DEFAULT_TV_STAND_CONFIG, ...normalized.furniture.tvStandConfig },
         wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, ...normalized.furniture.wardrobeConfig },
         materialConfigs,
       };

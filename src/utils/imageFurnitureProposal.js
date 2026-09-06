@@ -1,5 +1,6 @@
 import { DESK_DRAWER_LIMITS, NIGHTSTAND_DRAWER_LIMITS } from "./drawerLimits.js";
 import { normalizeWardrobeSectionWidthRatios, WARDROBE_LIMITS } from "./wardrobeStructure.js";
+import { normalizeTvStandSectionWidthRatios } from "./tvStandStructure.js";
 
 export const PROPOSAL_TYPES = ["unknown", "nightstand", "desk", "tvStand", "catHouse", "wardrobe"];
 
@@ -19,6 +20,7 @@ export function validateFurnitureProposal(proposal) {
     errors.push(`La cantidad de cajones debe estar entre ${limits.min} y ${limits.max}.`);
   }
   if (proposal.detectedType === "desk" && proposal.structure.drawerModule && !proposal.structure.drawerModule.valid) errors.push(proposal.structure.drawerModule.warning || "No se pudo determinar una única cajonera.");
+  if (proposal.detectedType === "tvStand" && proposal.structure.sectionLayout && (proposal.structure.sectionLayout.length !== 2 || proposal.structure.layoutCanNormalizeSections !== true)) errors.push("El TV Stand requiere exactamente 2 secciones válidas, sin huecos ni solapamientos.");
   if (proposal.detectedType === "wardrobe") {
     const shelves = Number(proposal.structure.shelves);
     if (Number(proposal.structure.sections) !== 3) errors.push("El ropero actual utiliza exactamente 3 cuerpos.");
@@ -34,7 +36,7 @@ export function validateFurnitureProposal(proposal) {
   const unsupported = {
     nightstand: [["doors", "La Mesa de Noche actual no utiliza puertas."], ["shelves", "La Mesa de Noche actual no utiliza repisas."], ["sections", "La Mesa de Noche actual no utiliza cuerpos marcados."]],
     desk: [["doors", "El Escritorio actual no utiliza puertas."], ["shelves", "El Escritorio actual no utiliza repisas."]],
-    tvStand: [["drawers", "El Mueble TV actual no utiliza cajones."], ["doors", "El Mueble TV actual no utiliza puertas."], ["shelves", "El Mueble TV actual no utiliza repisas marcadas."], ["sections", "El Mueble TV actual no utiliza cuerpos marcados."]],
+    tvStand: [["drawers", "El Mueble TV actual no utiliza cajones."], ["doors", "El Mueble TV actual no utiliza puertas."], ["shelves", "El Mueble TV actual no utiliza repisas marcadas."]],
     catHouse: [["drawers", "La Casa para Gatos actual no utiliza cajones."], ["doors", "La Casa para Gatos actual no utiliza puertas."], ["shelves", "La Casa para Gatos actual no utiliza repisas."], ["sections", "La Casa para Gatos actual no utiliza cuerpos marcados."]],
   };
   for (const [key, message] of unsupported[proposal.detectedType] || []) {
@@ -57,6 +59,10 @@ export function proposalToNormalizedConfig(proposal) {
     drawerModuleSide: proposal.structure.drawerModule.side,
     drawerModuleWidthRatio: proposal.structure.drawerModule.widthRatio,
   };
+  if (proposal.detectedType === "tvStand" && proposal.structure.layoutCanNormalizeSections === true && proposal.structure.sectionLayout?.length === 2) {
+    const normalizedRatios = normalizeTvStandSectionWidthRatios(proposal.structure.sectionLayout.map(({ widthRatio }) => widthRatio));
+    if (normalizedRatios.valid) furniture.tvStandConfig = { sectionWidthRatios: normalizedRatios.ratios };
+  }
   if (proposal.detectedType === "wardrobe" && proposal.structure.layoutCanNormalizeSections === true && proposal.structure.sectionLayout?.length === 3) {
     const normalizedRatios = normalizeWardrobeSectionWidthRatios(proposal.structure.sectionLayout.map(({ widthRatio }) => widthRatio));
     if (normalizedRatios.valid) furniture.wardrobeConfig = { sectionWidthRatios: normalizedRatios.ratios };

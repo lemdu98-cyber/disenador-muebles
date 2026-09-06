@@ -2,6 +2,7 @@ export const DESIGN_SCHEMA_VERSION = 1;
 import { sanitizeEdgeBandingConfig } from "./edgeBanding.js";
 import { DEFAULT_DESK_CONFIG, getDeskSectionGeometry } from "./deskStructure.js";
 import { DEFAULT_WARDROBE_CONFIG, normalizeWardrobeSectionWidthRatios } from "./wardrobeStructure.js";
+import { DEFAULT_TV_STAND_CONFIG, normalizeTvStandSectionWidthRatios } from "./tvStandStructure.js";
 
 const VISUAL_ONLY_KEYS = new Set([
   "showOpenDrawers",
@@ -45,6 +46,10 @@ export function serializeDesignConfig(state) {
     furniture.deskConfig = { ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig, drawerModuleSide: geometry.drawerModuleSide, drawerModuleWidthRatio: geometry.drawerModuleWidthRatio };
     delete furniture.deskConfig.drawerPosition; delete furniture.deskConfig.drawerModuleWidthCm;
   }
+  if (state.furnitureType === "tvStand") {
+    const normalized = normalizeTvStandSectionWidthRatios(furniture.tvStandConfig?.sectionWidthRatios ?? DEFAULT_TV_STAND_CONFIG.sectionWidthRatios);
+    furniture.tvStandConfig = { ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig, sectionWidthRatios: normalized.ratios };
+  }
   return omitVisualState({
     dimensions: {
       widthCm: state.widthCm,
@@ -75,6 +80,10 @@ export function deserializeDesignConfig(furnitureType, config) {
     const geometry = getDeskSectionGeometry({ widthCm: config.dimensions.widthCm, thicknessCm: thicknessMm / 10, deskConfig: furniture.deskConfig });
     furniture.deskConfig = { ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig, drawerModuleSide: geometry.drawerModuleSide, drawerModuleWidthRatio: geometry.drawerModuleWidthRatio };
     delete furniture.deskConfig.drawerPosition; delete furniture.deskConfig.drawerModuleWidthCm;
+  }
+  if (furnitureType === "tvStand") {
+    const normalized = normalizeTvStandSectionWidthRatios(furniture.tvStandConfig?.sectionWidthRatios ?? DEFAULT_TV_STAND_CONFIG.sectionWidthRatios);
+    furniture.tvStandConfig = { ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig, sectionWidthRatios: normalized.ratios };
   }
   return {
     dimensions: config.dimensions,

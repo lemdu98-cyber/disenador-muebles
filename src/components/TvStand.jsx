@@ -25,16 +25,14 @@ export default function TvStand({ width, height, depth, thickness, backThickness
   const innerWidth = (basePiece?.length ?? structure.innerWidthCm) / 100;
   const dividerHeight = (dividerPiece?.length ?? structure.dividerHeightCm) / 100;
   const shelfDepth = (shelfPiece?.width ?? structure.shelfDepthCm) / 100;
-  const shelfSpan = (shelfPiece?.length ?? structure.shelfSpanCm) / 100;
+  const shelfSpans = structure.config.dividerEnabled ? [cut("Repisa izquierda")?.length ?? structure.sectionWidthsCm[0], cut("Repisa derecha")?.length ?? structure.sectionWidthsCm[1]].map((value) => value / 100) : [(shelfPiece?.length ?? structure.shelfSpanCm) / 100];
   const shelfY = structure.shelfCenterYCm / 100;
   const upperPiece = cut("Travesaño trasero superior"), lowerPiece = cut("Travesaño trasero inferior"), supportPiece = cut("Soporte vertical izquierdo"), backPiece = cut("Fondo trasero completo");
   const upperHeight = (upperPiece?.width ?? structure.upperRearHeightCm) / 100;
   const lowerHeight = (lowerPiece?.width ?? structure.lowerRearHeightCm) / 100;
   const supportHeight = (supportPiece?.length ?? structure.supportHeightCm) / 100;
   const supportDepth = (supportPiece?.width ?? structure.supportDepthCm) / 100;
-  const supportX = structure.supportCenterXCm / 100;
-  const spans = structure.config.dividerEnabled ? [-1, 1] : [0];
-  const spanCenterX = (side) => side === 0 ? 0 : side * (thickness / 2 + shelfSpan / 2);
+  const shelfCenters = structure.config.dividerEnabled ? structure.sectionCentersXCm.map((value) => value / 100) : [0];
   const inspectionOpacity = structure.config.showStructure ? .38 : 1;
 
   return <group>
@@ -42,9 +40,9 @@ export default function TvStand({ width, height, depth, thickness, backThickness
     <Piece position={[-width / 2 + thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, (sidePiece?.width ?? depth * 100) / 100]} opacity={inspectionOpacity} />
     <Piece position={[width / 2 - thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, (sidePiece?.width ?? depth * 100) / 100]} opacity={inspectionOpacity} />
     <Piece position={[0, -height / 2 + thickness / 2, 0]} dimensions={[innerWidth, thickness, depth]} />
-    {structure.config.dividerEnabled && <Piece position={[0, 0, thickness / 2]} dimensions={[thickness, dividerHeight, shelfDepth]} color={DIVIDER} />}
-    {spans.map((side) => <Piece key={`shelf-${side}`} position={[spanCenterX(side), shelfY, thickness / 2]} dimensions={[shelfSpan, thickness, shelfDepth]} color={SHELF} />)}
-    {structure.config.dividerEnabled && [-1, 1].map((side) => <Piece key={`support-${side}`} position={[side * supportX, -height / 2 + thickness + supportHeight / 2, thickness / 2]} dimensions={[thickness, supportHeight, supportDepth]} color={SUPPORT} />)}
+    {structure.config.dividerEnabled && <Piece position={[structure.dividerCenterXCm / 100, 0, thickness / 2]} dimensions={[thickness, dividerHeight, shelfDepth]} color={DIVIDER} />}
+    {shelfCenters.map((center, index) => <Piece key={`shelf-${index}`} position={[center, shelfY, thickness / 2]} dimensions={[shelfSpans[index], thickness, shelfDepth]} color={SHELF} />)}
+    {structure.config.dividerEnabled && structure.supportCentersXCm.map((center, index) => <Piece key={`support-${index}`} position={[center / 100, -height / 2 + thickness + supportHeight / 2, thickness / 2]} dimensions={[thickness, supportHeight, supportDepth]} color={SUPPORT} />)}
     {structure.config.upperRearEnabled && <Piece position={[0, height / 2 - thickness - upperHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(upperPiece?.length ?? innerWidth * 100) / 100, upperHeight, thickness]} color={BRACE} />}
     {structure.config.lowerRearEnabled && <Piece position={[0, -height / 2 + thickness + lowerHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(lowerPiece?.length ?? innerWidth * 100) / 100, lowerHeight, thickness]} color={BRACE} />}
     {!structure.config.showStructure && <Piece position={[0, 0, -depth / 2 - backThickness / 2]} dimensions={[(backPiece?.length ?? width * 100) / 100, (backPiece?.width ?? height * 100) / 100, backThickness]} color={HARDBOARD} />}

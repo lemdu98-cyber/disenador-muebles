@@ -129,8 +129,8 @@ export function getCutPieces({ furnitureType, widthCm, heightCm, depthCm, drawer
     addPieces(pieces, "Base inferior", 1, structure.innerWidthCm, depthCm, melamine, { lengthStrategy: "floor", maxLengthCm: structure.innerWidthCm });
     if (structure.config.dividerEnabled) addPieces(pieces, "Divisor vertical central", 1, structure.dividerHeightCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.dividerHeightCm, maxWidthCm: structure.shelfDepthCm });
     if (structure.config.dividerEnabled) {
-      addPieces(pieces, "Repisa izquierda", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.shelfSpanCm, maxWidthCm: structure.shelfDepthCm });
-      addPieces(pieces, "Repisa derecha", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.shelfSpanCm, maxWidthCm: structure.shelfDepthCm });
+      addPieces(pieces, "Repisa izquierda", 1, structure.sectionWidthsCm[0], structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.sectionWidthsCm[0], maxWidthCm: structure.shelfDepthCm });
+      addPieces(pieces, "Repisa derecha", 1, structure.sectionWidthsCm[1], structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.sectionWidthsCm[1], maxWidthCm: structure.shelfDepthCm });
       addPieces(pieces, "Soporte vertical izquierdo", 1, structure.supportHeightCm, structure.supportDepthCm, melamine);
       addPieces(pieces, "Soporte vertical derecho", 1, structure.supportHeightCm, structure.supportDepthCm, melamine);
     } else addPieces(pieces, "Repisa interior", 1, structure.shelfSpanCm, structure.shelfDepthCm, melamine, { lengthStrategy: "floor", widthStrategy: "floor", maxLengthCm: structure.shelfSpanCm, maxWidthCm: structure.shelfDepthCm });

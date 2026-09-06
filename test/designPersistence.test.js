@@ -104,3 +104,10 @@ test("persiste lado y ratio de cajonera y migra el formato absoluto anterior", (
   assert.equal(legacy.furniture.deskConfig.drawerModuleSide, "left");
   assert.equal(legacy.furniture.deskConfig.drawerModuleWidthRatio, 37 / 155.5);
 });
+
+test("persiste 35/65 del TV Stand y diseños antiguos reciben 50/50", () => {
+  const config = serializeDesignConfig({ ...state, furnitureType: "tvStand", tvStandConfig: { sectionWidthRatios: [35, 65] } });
+  assert.deepEqual(deserializeDesignConfig("tvStand", config).furniture.tvStandConfig.sectionWidthRatios, [.35, .65]);
+  const legacy = deserializeDesignConfig("tvStand", { dimensions: {}, quantities: {}, furniture: { tvStandConfig: { dividerEnabled: true } }, materials: {} });
+  assert.deepEqual(legacy.furniture.tvStandConfig.sectionWidthRatios, [.5, .5]);
+});
