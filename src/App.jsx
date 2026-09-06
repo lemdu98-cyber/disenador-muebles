@@ -13,7 +13,6 @@ import ProductionPanel from "./components/ProductionPanel";
 import MaterialSettings from "./components/MaterialSettings";
 import DrawerSlideSettings from "./components/DrawerSlideSettings";
 import DrawerFrontSettings from "./components/DrawerFrontSettings";
-import CatHouseSettings from "./components/CatHouseSettings";
 import NightstandStructureSettings from "./components/NightstandStructureSettings";
 import DeskSettings from "./components/DeskSettings";
 import HardwareSummary from "./components/HardwareSummary";
@@ -61,7 +60,7 @@ export default function App() {
   const [materialConfigs, setMaterialConfigs] = useState(createMaterialConfig);
   const [drawerSlideConfig, setDrawerSlideConfig] = useState(DEFAULT_DRAWER_SLIDE_CONFIG);
   const [drawerFrontConfig, setDrawerFrontConfig] = useState(DEFAULT_DRAWER_FRONT_CONFIG);
-  const [catHouseConfig, setCatHouseConfig] = useState({ entryType: "none", entryDiameterCm: 22, entryWidthCm: 22, entryHeightCm: 22, color: "#8b5a2b" });
+  const [catHouseConfig, setCatHouseConfig] = useState({});
   const [nightstandStructureConfig, setNightstandStructureConfig] = useState(DEFAULT_NIGHTSTAND_STRUCTURE);
   const [deskConfig, setDeskConfig] = useState(DEFAULT_DESK_CONFIG);
   const [tvStandConfig, setTvStandConfig] = useState(DEFAULT_TV_STAND_CONFIG);
@@ -194,7 +193,7 @@ export default function App() {
     setShelves(quantities.shelves ?? (type === "wardrobe" ? 3 : 0));
     setDrawerSlideConfig({ ...DEFAULT_DRAWER_SLIDE_CONFIG, ...(useConstructiveDefaults ? {} : furniture.drawerSlideConfig) });
     setDrawerFrontConfig({ ...DEFAULT_DRAWER_FRONT_CONFIG, ...(useConstructiveDefaults ? {} : furniture.drawerFrontConfig) });
-    setCatHouseConfig((current) => ({ ...current, ...(useConstructiveDefaults ? {} : furniture.catHouseConfig) }));
+    setCatHouseConfig({});
     setNightstandStructureConfig({ ...DEFAULT_NIGHTSTAND_STRUCTURE, ...(useConstructiveDefaults ? {} : furniture.nightstandStructureConfig), ...(furniture.nightstandStructureConfig?.drawerHeightRatios ? { drawerHeightRatios: furniture.nightstandStructureConfig.drawerHeightRatios } : {}) });
     setDeskConfig({ ...DEFAULT_DESK_CONFIG, ...furniture.deskConfig });
     setTvStandConfig({ ...DEFAULT_TV_STAND_CONFIG, ...furniture.tvStandConfig });
@@ -311,7 +310,7 @@ export default function App() {
           <label>Repisas para zapatos<input type="number" min={WARDROBE_LIMITS.shoeShelves.min} max={WARDROBE_LIMITS.shoeShelves.max} value={shelves} onChange={(event) => setShelves(Math.max(WARDROBE_LIMITS.shoeShelves.min, Math.min(WARDROBE_LIMITS.shoeShelves.max, Math.floor(Number(event.target.value) || WARDROBE_LIMITS.shoeShelves.min))))} /></label>
         </>}
       </section>
-      {isCatHouse ? <CatHouseSettings config={catHouseConfig} onChange={setCatHouseConfig} thicknessMm={materialConfigs.melamine.thicknessMm} /> : <>
+      {!isCatHouse && <>
         {isNightstand && <NightstandStructureSettings config={nightstandStructureConfig} onChange={setNightstandStructureConfig} structure={nightstandStructure} />}
         {isDesk && <DeskSettings config={deskConfig} onChange={setDeskConfig} structure={deskStructure} />}
         {isTvStand && <TvStandSettings config={tvStandConfig} onChange={setTvStandConfig} structure={tvStandStructure} />}
@@ -338,7 +337,7 @@ export default function App() {
         <ambientLight intensity={1.4} />
         <directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
         <Bounds fit clip observe margin={1.12}>
-          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} color={catHouseConfig.color} entry={{ type: catHouseConfig.entryType, diameter: catHouseConfig.entryDiameterCm / 100, width: catHouseConfig.entryWidthCm / 100, height: catHouseConfig.entryHeightCm / 100 }} manufacturingPieces={generatedPieces} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} manufacturingPieces={generatedPieces} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} manufacturingPieces={generatedPieces} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} manufacturingPieces={generatedPieces} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} manufacturingPieces={generatedPieces} />}
+          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} manufacturingPieces={generatedPieces} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} manufacturingPieces={generatedPieces} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} manufacturingPieces={generatedPieces} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} manufacturingPieces={generatedPieces} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} manufacturingPieces={generatedPieces} />}
         </Bounds>
         <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
         <OrbitControls makeDefault minDistance={2} maxDistance={10} />

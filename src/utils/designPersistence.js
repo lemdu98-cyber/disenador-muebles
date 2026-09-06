@@ -38,6 +38,7 @@ export function serializeDesignConfig(state) {
   const fields = TYPE_FIELDS[state.furnitureType];
   if (!fields) throw new Error(`Tipo de mueble no compatible: ${state.furnitureType}.`);
   const furniture = pick(state, fields.furniture);
+  if (state.furnitureType === "catHouse") furniture.catHouseConfig = {};
   if (state.furnitureType === "wardrobe") {
     const normalized = normalizeWardrobeSectionWidthRatios(furniture.wardrobeConfig?.sectionWidthRatios ?? DEFAULT_WARDROBE_CONFIG.sectionWidthRatios);
     furniture.wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig, sectionWidthRatios: normalized.ratios };
@@ -77,6 +78,7 @@ export function deserializeDesignConfig(furnitureType, config) {
   if (!fields) throw new Error(`Tipo de mueble no compatible: ${furnitureType}.`);
   const oldMaterials = config.materials || {};
   const furniture = pick(config.furniture || {}, fields.furniture);
+  if (furnitureType === "catHouse") furniture.catHouseConfig = {};
   if (furnitureType === "wardrobe") {
     const normalized = normalizeWardrobeSectionWidthRatios(furniture.wardrobeConfig?.sectionWidthRatios ?? DEFAULT_WARDROBE_CONFIG.sectionWidthRatios);
     furniture.wardrobeConfig = { ...DEFAULT_WARDROBE_CONFIG, ...furniture.wardrobeConfig, sectionWidthRatios: normalized.ratios };
