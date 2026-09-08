@@ -1,5 +1,6 @@
 import { createComponent } from "./componentFactory.js";
 import { validateFurnitureModel } from "./componentValidation.js";
+import { getComponentBounds } from "./spatial.js";
 
 export const getComponentById = (model, id) => model.components.find((component) => component.id === id) ?? null;
 export const getChildren = (model, parentId) => model.components.filter((component) => component.parentId === parentId);
@@ -14,6 +15,5 @@ export function createFurnitureModel({ furnitureType, dimensions, components, ge
 }
 
 export function boundsFromCenter(dimensions, position) {
-  if (!dimensions || !position || ![dimensions.widthCm, dimensions.heightCm, dimensions.depthCm, position.xCm, position.yCm, position.zCm].every(Number.isFinite)) return null;
-  return { minX: position.xCm - dimensions.widthCm / 2, maxX: position.xCm + dimensions.widthCm / 2, minY: position.yCm - dimensions.heightCm / 2, maxY: position.yCm + dimensions.heightCm / 2, minZ: position.zCm - dimensions.depthCm / 2, maxZ: position.zCm + dimensions.depthCm / 2 };
+  return getComponentBounds({ dimensions, position });
 }

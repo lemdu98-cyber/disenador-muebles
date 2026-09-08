@@ -7,7 +7,7 @@ export function buildComponentTree(model) {
 }
 export function summarizeFurnitureModel(model) {
   const components = model.components.length; const count = (type) => model.components.filter((c) => c.type === type).length;
-  return { components, physical: model.components.filter((c) => c.sourcePieceIds.length > 0).length, logical: model.components.filter((c) => c.sourcePieceIds.length === 0).length, sections: count("section"), drawers: count("drawer"), doors: count("door"), openings: count("opening"), positioned: model.components.filter((c) => c.position).length, sourced: model.components.filter((c) => c.sourcePieceIds.length).length };
+  return { components, physical: model.components.filter((c) => c.sourcePieceIds.length > 0).length, logical: model.components.filter((c) => c.sourcePieceIds.length === 0).length, sections: count("section"), drawers: count("drawer"), doors: count("door"), openings: count("opening"), positioned: model.components.filter((c) => c.position).length, bounded: model.components.filter((c) => c.bounds).length, oriented: model.components.filter((c) => c.orientation).length, sourced: model.components.filter((c) => c.sourcePieceIds.length).length };
 }
 export function filterComponents(model, type = "all", search = "") { const term = search.trim().toLowerCase(); return model.components.filter((c) => (type === "all" || c.type === type) && (!term || `${c.id} ${c.role} ${c.type}`.toLowerCase().includes(term))); }
 export const resolveSourcePieces = (component, generatedPieces) => component.sourcePieceIds.map((id) => generatedPieces.find((piece) => piece.id === id)).filter(Boolean);

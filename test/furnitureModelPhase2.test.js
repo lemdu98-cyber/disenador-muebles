@@ -10,7 +10,7 @@ const model = { furnitureType: "desk", components: [
 ] };
 test("inspector helpers build stable hierarchy, counts, filters and source details", () => {
   const tree = buildComponentTree(model); assert.equal(tree[0].children[0].children[0].component.id, "desk.section.panel");
-  assert.deepEqual(summarizeFurnitureModel(model), { components: 3, physical: 1, logical: 2, sections: 2, drawers: 0, doors: 0, openings: 0, positioned: 2, sourced: 1 });
+  assert.deepEqual(summarizeFurnitureModel(model), { components: 3, physical: 1, logical: 2, sections: 2, drawers: 0, doors: 0, openings: 0, positioned: 2, bounded: 3, oriented: 0, sourced: 1 });
   assert.deepEqual(filterComponents(model, "panel", "shelf").map(({ id }) => id), ["desk.section.panel"]);
   assert.equal(resolveSourcePieces(model.components[2], pieces)[0].grainRequired, true);
 });

@@ -6,3 +6,4 @@ export * from "./furnitureModel.js";
 export * from "./adapters.js";
 export * from "./buildFurnitureModel.js";
 export * from "./inspectorData.js";
+export * from "./spatial.js";
