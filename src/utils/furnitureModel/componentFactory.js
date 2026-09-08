@@ -20,10 +20,11 @@ export function createComponent({ id, type, role = type, material = "none", dime
 }
 
 export function componentFromPiece({ id, type = "panel", role, piece, parentId = null, position = null, orientation = null, bounds = null, metadata = {} }) {
+  const dimensions = { widthCm: piece.length, heightCm: (piece.material?.thicknessMm ?? 0) / 10, depthCm: piece.width };
   return createComponent({
     id, type, role, parentId, manufacturable: true, material: piece.material?.id ?? "none", sourcePieceIds: [piece.id],
     // The cut list only has two planar dimensions. Thickness comes from its existing material.
-    dimensions: { widthCm: piece.length, heightCm: (piece.material?.thicknessMm ?? 0) / 10, depthCm: piece.width }, position, orientation, bounds,
+    dimensions, position, orientation, bounds,
     metadata: { grainRequired: piece.grainRequired, edgeBanding: piece.edgeBanding, ...metadata },
   });
 }
