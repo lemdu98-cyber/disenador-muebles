@@ -1,6 +1,7 @@
 import { calculateDrawerBottomDimensions } from "../utils/drawerBottom";
 import { calculateDrawerFrontDimensions } from "../utils/drawerFront";
 import { Edges } from "@react-three/drei";
+import MelaminePanel from "./MelaminePanel.jsx";
 
 const MELAMINE = "#d8c3a5";
 const HARDBOARD = "#b98b5d";
@@ -51,9 +52,10 @@ export default function Drawer({
   const bottomCenterY = physicalGeometry?.bottomCenterY ?? bottom.centerY;
 
   return <group position={position}>
-    <mesh position={[0, frontCenterY, sideDepth / 2 + thickness / 2]}><boxGeometry args={[front.widthCm / 100, front.heightCm / 100, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
-    {[-1, 1].map((side) => <mesh key={side} position={[side * (boxWidth / 2 - thickness / 2), structureCenterY, 0]}><boxGeometry args={[thickness, sideHeight, sideDepth]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>)}
-    <mesh position={[0, structureCenterY, -sideDepth / 2 + thickness / 2]}><boxGeometry args={[backWidth, backHeight, thickness]} /><meshStandardMaterial color={MELAMINE} />{showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}</mesh>
+    <MelaminePanel position={[0, frontCenterY, sideDepth / 2 + thickness / 2]} dimensions={[front.widthCm / 100, front.heightCm / 100, thickness]} piece={manufactured.frontPiece} orientation="front" color={MELAMINE} showEdges={showEdges} />
+    <MelaminePanel position={[-boxWidth / 2 + thickness / 2, structureCenterY, 0]} dimensions={[thickness, sideHeight, sideDepth]} piece={manufactured.sideLeftPiece} orientation="side" color={MELAMINE} showEdges={showEdges} />
+    <MelaminePanel position={[boxWidth / 2 - thickness / 2, structureCenterY, 0]} dimensions={[thickness, sideHeight, sideDepth]} piece={manufactured.sideRightPiece} orientation="side" color={MELAMINE} showEdges={showEdges} />
+    <MelaminePanel position={[0, structureCenterY, -sideDepth / 2 + thickness / 2]} dimensions={[backWidth, backHeight, thickness]} piece={manufactured.backPiece} orientation="front" color={MELAMINE} showEdges={showEdges} />
     <mesh position={[0, bottomCenterY, bottom.centerZ]}><boxGeometry args={[bottomWidth, bottom.thickness, bottomDepth]} /><meshStandardMaterial color={HARDBOARD} />{showEdges && <Edges color="#62462f" threshold={15} scale={1.002} />}</mesh>
     <mesh position={[0, frontCenterY, sideDepth / 2 + thickness / 2]}><boxGeometry args={[Math.min(boxWidth * .32, .16), Math.max(.012, height * .07), .018]} /><meshStandardMaterial color="#3d3027" /></mesh>
   </group>;

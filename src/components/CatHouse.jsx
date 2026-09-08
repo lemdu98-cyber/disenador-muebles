@@ -1,5 +1,6 @@
 import { Edges } from "@react-three/drei";
 import { findManufacturingPiece } from "../utils/manufacturingGrid.js";
+import MelaminePanel from "./MelaminePanel.jsx";
 
 const MELAMINE = "#8b5a2b";
 const HARDBOARD = "#b98b5d";
@@ -29,10 +30,10 @@ export default function CatHouse({ width, height, depth, thickness = 0.015, back
   const backWidth = (back?.length ?? width * 100) / 100;
   const backHeight = (back?.width ?? height * 100) / 100;
   return <group>
-    <Board position={[-width / 2 + thickness / 2, 0, 0]} dimensions={[thickness, sideHeight, sideDepth]} color={MELAMINE} />
-    <Board position={[width / 2 - thickness / 2, 0, 0]} dimensions={[thickness, rightHeight, rightDepth]} color={MELAMINE} />
-    <Board position={[0, height / 2 - thickness / 2, 0]} dimensions={[topWidth, thickness, topDepth]} color={MELAMINE} />
-    <Board position={[0, -height / 2 + thickness / 2, 0]} dimensions={[baseWidth, thickness, baseDepth]} color={MELAMINE} />
+    <MelaminePanel position={[-width / 2 + thickness / 2, 0, 0]} dimensions={[thickness, sideHeight, sideDepth]} piece={left} orientation="side" color={MELAMINE} />
+    <MelaminePanel position={[width / 2 - thickness / 2, 0, 0]} dimensions={[thickness, rightHeight, rightDepth]} piece={right} orientation="side" color={MELAMINE} />
+    <MelaminePanel position={[0, height / 2 - thickness / 2, 0]} dimensions={[topWidth, thickness, topDepth]} piece={top} orientation="horizontal" color={MELAMINE} />
+    <MelaminePanel position={[0, -height / 2 + thickness / 2, 0]} dimensions={[baseWidth, thickness, baseDepth]} piece={base} orientation="horizontal" color={MELAMINE} />
     <Board position={[0, 0, -depth / 2 - backThickness / 2]} dimensions={[backWidth, backHeight, backThickness]} color={HARDBOARD} />
   </group>;
 }
