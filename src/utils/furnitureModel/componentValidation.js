@@ -1,6 +1,7 @@
 import { FURNITURE_TYPES, isComponentType } from "./componentTypes.js";
 
 const validDimensions = (dimensions) => dimensions == null || [dimensions.widthCm, dimensions.heightCm, dimensions.depthCm].every((value) => Number.isFinite(value) && value >= 0);
+export const componentFitsInsideParent = (component, parent) => !component?.bounds || !parent?.bounds || (component.bounds.minX >= parent.bounds.minX && component.bounds.maxX <= parent.bounds.maxX && component.bounds.minY >= parent.bounds.minY && component.bounds.maxY <= parent.bounds.maxY && component.bounds.minZ >= parent.bounds.minZ && component.bounds.maxZ <= parent.bounds.maxZ);
 
 export function validateFurnitureModel(model, generatedPieces = []) {
   const errors = [];
@@ -18,6 +19,7 @@ export function validateFurnitureModel(model, generatedPieces = []) {
   }
   const byId = new Map(model.components.map((component) => [component.id, component]));
   for (const component of model.components) if (component.parentId && !byId.has(component.parentId)) errors.push(`Unknown parent: ${component.parentId}.`);
+  for (const component of model.components) if (component.parentId && byId.has(component.parentId) && !componentFitsInsideParent(component, byId.get(component.parentId))) errors.push(`Child outside parent bounds: ${component.id}.`);
   for (const component of model.components) {
     const seen = new Set(); let current = component;
     while (current?.parentId) {

@@ -4,7 +4,6 @@ import { createFurnitureModel } from "./furnitureModel.js";
 const piece = (pieces, name, occurrence = 0) => pieces.filter((item) => item.name === name)[occurrence];
 const named = (pieces, name) => pieces.find((item) => item.name === name);
 const physical = (components, id, type, role, item, parentId, metadata) => { if (item) components.push(componentFromPiece({ id, type, role, piece: item, parentId, metadata })); };
-const dimensions = ({ widthCm, heightCm, depthCm }) => ({ widthCm, heightCm, depthCm });
 const finish = (furnitureType, input, components) => createFurnitureModel({ furnitureType, dimensions: input, components, generatedPieces: input.generatedPieces });
 
 export function adaptNightstandToFurnitureModel(input) {
@@ -40,7 +39,7 @@ export function adaptTvStandToFurnitureModel(input) {
   ["superior", "inferior"].forEach((side) => physical(c, `tvStand.rearCrossbar.${side}`, "crossbar", "rear-crossbar", named(pieces, `Travesaño trasero ${side}`), root)); return finish("tvStand", input, c);
 }
 
-export function adaptCatHouseToFurnitureModel(input) { const { generatedPieces: pieces } = input; const c = []; const root = "catHouse.root"; [["top", "Tapa superior"], ["bottom", "Base inferior"], ["leftSide", "Lateral izquierdo"], ["rightSide", "Lateral derecho"], ["back", "Trasera de cartón prensado"]].forEach(([id, name]) => physical(c, `catHouse.${id}`, id === "back" ? "back" : "panel", id, named(pieces, name), root)); c.push(createComponent({ id: "catHouse.frontOpening", type: "opening", role: "front-opening", parentId: root, dimensions: dimensions(input), position: null })); return finish("catHouse", input, c); }
+export function adaptCatHouseToFurnitureModel(input) { const { generatedPieces: pieces } = input; const c = []; const root = "catHouse.root"; [["top", "Tapa superior"], ["bottom", "Base inferior"], ["leftSide", "Lateral izquierdo"], ["rightSide", "Lateral derecho"], ["back", "Trasera de cartón prensado"]].forEach(([id, name]) => physical(c, `catHouse.${id}`, id === "back" ? "back" : "panel", id, named(pieces, name), root)); const thickness = (named(pieces, "Lateral izquierdo")?.material?.thicknessMm ?? 0) / 10; c.push(createComponent({ id: "catHouse.frontOpening", type: "opening", role: "front-opening", parentId: root, dimensions: { widthCm: input.widthCm - thickness * 2, heightCm: input.heightCm - thickness * 2, depthCm: 0 }, position: { xCm: 0, yCm: 0, zCm: input.depthCm / 2 } })); return finish("catHouse", input, c); }
 
 export function adaptWardrobeToFurnitureModel(input) {
   const { generatedPieces: pieces, structure } = input; const c = []; const root = "wardrobe.root";

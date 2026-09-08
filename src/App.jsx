@@ -21,6 +21,8 @@ import OptimizerSettings from "./components/OptimizerSettings";
 import ManufacturingStatus from "./components/ManufacturingStatus";
 import DesignLibrary from "./components/DesignLibrary";
 import FurnitureImageImporter from "./components/FurnitureImageImporter";
+import FurnitureModelInspector from "./components/FurnitureModelInspector";
+import { buildFurnitureModel } from "./utils/furnitureModel";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -124,6 +126,14 @@ export default function App() {
   const geometryValidationError = drawerValidationError || structureValidationError || deskValidationError || tvStandValidationError || wardrobeValidationError;
   const designInputs = { furnitureType, widthCm, heightCm, depthCm, doors, drawers, shelves, drawerSlideConfig, drawerFrontConfig, catHouseConfig, nightstandStructureConfig, deskConfig, tvStandConfig, wardrobeConfig, edgeBanding };
   const generatedPieces = getCutPieces({ ...designInputs, materialConfigs });
+  const furnitureModel = useMemo(() => {
+    try {
+      const structure = isNightstand ? nightstandStructure : isDesk ? deskStructure : isTvStand ? tvStandStructure : isWardrobe ? wardrobeStructure : null;
+      return { model: buildFurnitureModel({ furnitureType, widthCm, heightCm, depthCm, drawers, shelves, generatedPieces, structure }), error: null };
+    } catch (error) { return { model: null, error: error.message || "FurnitureModel could not be built." }; }
+  // generatedPieces is intentionally an input: the projection validates its current source IDs.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  }, [furnitureType, widthCm, heightCm, depthCm, drawers, shelves, generatedPieces, isNightstand, isDesk, isTvStand, isWardrobe, nightstandStructure, deskStructure, tvStandStructure, wardrobeStructure]);
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
   const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
@@ -329,6 +339,7 @@ export default function App() {
           return updated;
         })} />
         <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
+        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
       </>}
     </aside>
     {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} optimizerSettings={optimizerSettings} setOptimizerSettings={setOptimizerSettings} /> : <section className="viewport">
