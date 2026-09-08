@@ -7,7 +7,7 @@ import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE } from "../s
 import { calculateDeskStructure, DEFAULT_DESK_CONFIG } from "../src/utils/deskStructure.js";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "../src/utils/tvStandStructure.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
-import { buildFurnitureModel, getAncestorIds, getComponentById, getComponentsByType, getDrawerComponentIds, getHighlightedComponentIds, normalizeFurnitureComponentSelection, validateFurnitureModel } from "../src/utils/furnitureModel/index.js";
+import { buildFurnitureModel, buildFurnitureRelations, componentsTouchOnAxis, createFurnitureRelation, getAncestorIds, getComponentById, getComponentsByType, getDrawerComponentIds, getHighlightedComponentIds, getIncomingRelations, getOutgoingRelations, getRelationsByType, getRelationsForComponent, normalizeFurnitureComponentSelection, validateFurnitureModel, validateFurnitureRelations } from "../src/utils/furnitureModel/index.js";
 
 const materials = createMaterialConfig();
 const base = { widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, materialConfigs: materials };
@@ -101,4 +101,110 @@ test("selection normalization clears an id that disappears from a rebuilt model"
   assert.equal(normalizeFurnitureComponentSelection(withDrawers, "nightstand.drawer.2"), "nightstand.drawer.2");
   assert.equal(normalizeFurnitureComponentSelection(withoutDrawers, "nightstand.drawer.2"), null);
   assert.equal(normalizeFurnitureComponentSelection(withoutDrawers, null), null);
+});
+
+const hasRelation = (model, sourceId, type, targetId) => model.relations.some((relation) => relation.sourceId === sourceId && relation.type === type && relation.targetId === targetId);
+
+test("relation ids, order and pure lookup helpers are deterministic", () => {
+  const options = { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 2, shelves: 0, nightstandStructureConfig: { ...DEFAULT_NIGHTSTAND_STRUCTURE, drawerHeightRatios: [.4, .6] } };
+  const first = modelFor("nightstand", options); const second = modelFor("nightstand", options);
+  assert.deepEqual(first.relations, second.relations);
+  assert.deepEqual(first.relations.map(({ id }) => id), [...first.relations].sort((a, b) => a.sourceId.localeCompare(b.sourceId) || a.type.localeCompare(b.type) || a.targetId.localeCompare(b.targetId)).map(({ id }) => id));
+  assert.ok(first.relations.every((relation) => relation.id === `${relation.sourceId}|${relation.type}|${relation.targetId}`));
+  assert.deepEqual(getRelationsForComponent(first, "nightstand.top"), getOutgoingRelations(first, "nightstand.top"));
+  assert.equal(getIncomingRelations(first, "nightstand.leftSide").length, 3);
+  assert.equal(getRelationsByType(first, "supported-by").length, 2);
+});
+
+test("relation validation rejects missing endpoints, self relations, invalid types, duplicate ids and incompatible endpoints", () => {
+  const components = [{ id: "root", type: "section" }, { id: "panel", type: "panel" }, { id: "back", type: "back" }];
+  const duplicate = createFurnitureRelation("back", "closes", "root");
+  const result = validateFurnitureRelations({ components, relations: [duplicate, duplicate, createFurnitureRelation("back", "closes", "missing"), createFurnitureRelation("panel", "connects", "panel"), createFurnitureRelation("panel", "unknown", "root"), createFurnitureRelation("panel", "closes", "root")] });
+  assert.equal(result.valid, false);
+  ["Duplicate", "Unknown relation target", "self relation", "Invalid relation type", "Incompatible relation source"].forEach((message) => assert.ok(result.errors.some((error) => error.includes(message))));
+});
+
+test("contact epsilon corroborates semantic support without fuzzy distance inference", () => {
+  const source = { bounds: { minX: 0, maxX: 10, minY: 10.04, maxY: 12, minZ: 0, maxZ: 10 } };
+  const touching = { bounds: { minX: 0, maxX: 2, minY: 0, maxY: 10, minZ: 0, maxZ: 10 } };
+  const separated = { bounds: { ...touching.bounds, maxY: 9.98 } };
+  assert.equal(componentsTouchOnAxis(source, touching, "y"), true);
+  assert.equal(componentsTouchOnAxis(source, separated, "y"), false);
+});
+
+test("nightstand 40/60 relations cover top, drawers, crossbars and rear", () => {
+  const model = modelFor("nightstand", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 2, shelves: 0, nightstandStructureConfig: { ...DEFAULT_NIGHTSTAND_STRUCTURE, drawerHeightRatios: [.4, .6] } });
+  assert.equal(model.validation.valid, true);
+  ["nightstand.leftSide", "nightstand.rightSide"].forEach((target) => assert.ok(hasRelation(model, "nightstand.top", "supported-by", target)));
+  [1, 2].forEach((number) => assert.ok(hasRelation(model, `nightstand.drawer.${number}`, "contained-in", "nightstand.root")));
+  assert.ok(hasRelation(model, "nightstand.frontCrossbar", "connects", "nightstand.leftSide"));
+  assert.ok(hasRelation(model, "nightstand.back", "closes", "nightstand.root"));
+});
+
+test("desk divider separates module and opening correctly for right and left 35 percent layouts", () => {
+  for (const side of ["right", "left"]) {
+    const model = modelFor("desk", { widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0, deskConfig: { ...DEFAULT_DESK_CONFIG, drawerModuleSide: side, drawerModuleWidthRatio: .35 } });
+    const moduleRelation = model.relations.find(({ sourceId, type, targetId }) => sourceId === "desk.divider" && type === "separates" && targetId === "desk.drawerModule");
+    const openingRelation = model.relations.find(({ sourceId, type, targetId }) => sourceId === "desk.divider" && type === "separates" && targetId === "desk.legOpening");
+    assert.equal(moduleRelation.metadata.side, side); assert.equal(openingRelation.metadata.side, side === "right" ? "left" : "right");
+    assert.ok(hasRelation(model, "desk.drawer.1", "contained-in", "desk.drawerModule")); assert.equal(model.validation.valid, true);
+  }
+});
+
+test("TV Stand 35/65 keeps divider and shelf relations tied to semantic sections", () => {
+  const model = modelFor("tvStand", { widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0, tvStandConfig: { ...DEFAULT_TV_STAND_CONFIG, sectionWidthRatios: [.35, .65] } });
+  [1, 2].forEach((number) => {
+    assert.ok(hasRelation(model, "tvStand.divider.1", "separates", `tvStand.section.${number}`));
+    assert.ok(hasRelation(model, `tvStand.shelf.${number}`, "contained-in", `tvStand.section.${number}`));
+    assert.ok(hasRelation(model, `tvStand.shelf.${number}`, "supported-by", `tvStand.support.${number}`));
+  });
+  assert.equal(model.validation.valid, true);
+});
+
+test("Cat House exposes only reliable enclosure relations and no invented front door", () => {
+  const model = modelFor("catHouse", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 0, shelves: 0 });
+  assert.ok(hasRelation(model, "catHouse.back", "closes", "catHouse.root"));
+  assert.ok(hasRelation(model, "catHouse.top", "supported-by", "catHouse.leftSide"));
+  assert.ok(hasRelation(model, "catHouse.bottom", "connects", "catHouse.rightSide"));
+  assert.equal(getRelationsForComponent(model, "catHouse.frontOpening").some(({ type }) => type === "covers"), false);
+});
+
+test("Wardrobe 20/35/45 hinged relations preserve bodies, boundaries, openings and rear segments", () => {
+  const model = modelFor("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45], doorType: "hinged" } });
+  [[1, 1], [1, 2], [2, 2], [2, 3]].forEach(([divider, body]) => assert.ok(hasRelation(model, `wardrobe.divider.${divider}`, "separates", `wardrobe.body.${body}`)));
+  [1, 3].forEach((body) => assert.ok(model.components.filter(({ type, parentId }) => type === "drawer" && parentId === `wardrobe.body.${body}`).every(({ id }) => hasRelation(model, id, "contained-in", `wardrobe.body.${body}`))));
+  for (let body = 1; body <= 3; body += 1) {
+    assert.ok(hasRelation(model, `wardrobe.body.${body}.back`, "closes", `wardrobe.body.${body}`));
+    assert.ok(model.components.filter(({ type, parentId }) => type === "shelf" && parentId === `wardrobe.body.${body}`).every(({ id }) => hasRelation(model, id, "contained-in", `wardrobe.body.${body}`)));
+    ["superior", "principal"].forEach((kind) => assert.ok(hasRelation(model, `wardrobe.body.${body}.door.${kind}`, "covers", `wardrobe.body.${body}.opening`)));
+  }
+  assert.equal(model.validation.valid, true);
+});
+
+test("Wardrobe sliding leaves cover the global front instead of belonging one-to-one to unequal bodies", () => {
+  const model = modelFor("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45], doorType: "sliding" } });
+  const slidingDoors = model.components.filter(({ type, role }) => type === "door" && role === "sliding");
+  assert.equal(slidingDoors.length, 3);
+  slidingDoors.forEach(({ id }) => {
+    assert.ok(hasRelation(model, id, "covers", "wardrobe.root"));
+    assert.equal(getOutgoingRelations(model, id).some(({ targetId }) => targetId.includes(".opening")), false);
+  });
+  assert.equal(model.validation.valid, true);
+});
+
+test("all default legacy models have valid relations and rebuilding relations mutates no inputs", () => {
+  const legacyCases = [
+    ["nightstand", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 2, shelves: 0 }],
+    ["desk", { widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0 }],
+    ["tvStand", { widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0 }],
+    ["catHouse", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 0, shelves: 0 }],
+    ["wardrobe", {}],
+  ];
+  legacyCases.forEach(([type, options]) => assert.equal(modelFor(type, options).validation.valid, true));
+  const config = { ...DEFAULT_NIGHTSTAND_STRUCTURE, drawerHeightRatios: [.4, .6] };
+  const input = { ...base, furnitureType: "nightstand", widthCm: 50, heightCm: 55, depthCm: 40, drawers: 2, shelves: 0, nightstandStructureConfig: config };
+  input.generatedPieces = getCutPieces(input); input.structure = calculateNightstandStructure({ ...input, thicknessCm: 1.5, structureConfig: config });
+  const generatedSnapshot = structuredClone(input.generatedPieces); const configSnapshot = structuredClone(config); const model = buildFurnitureModel(input); const modelSnapshot = structuredClone(model);
+  assert.deepEqual(buildFurnitureRelations(model), model.relations);
+  assert.deepEqual(model, modelSnapshot); assert.deepEqual(input.generatedPieces, generatedSnapshot); assert.deepEqual(config, configSnapshot);
 });

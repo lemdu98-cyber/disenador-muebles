@@ -1,6 +1,8 @@
 import { createComponent } from "./componentFactory.js";
 import { validateFurnitureModel } from "./componentValidation.js";
 import { getComponentBounds } from "./spatial.js";
+import { buildFurnitureRelations } from "./relations.js";
+import { validateFurnitureRelations } from "./relationValidation.js";
 
 export const getComponentById = (model, id) => model.components.find((component) => component.id === id) ?? null;
 export const normalizeFurnitureComponentSelection = (model, selectedId) => selectedId && model?.components?.some((component) => component.id === selectedId) ? selectedId : null;
@@ -38,8 +40,11 @@ export function getDrawerComponentIds(baseId) {
 export function createFurnitureModel({ furnitureType, dimensions, components, generatedPieces }) {
   const rootId = `${furnitureType}.root`;
   const root = createComponent({ id: rootId, type: "section", role: "root", dimensions, position: { xCm: 0, yCm: 0, zCm: 0 }, bounds: boundsFromCenter(dimensions, { xCm: 0, yCm: 0, zCm: 0 }), metadata: { semanticId: rootId } });
-  const model = { furnitureType, modelVersion: 1, dimensions: { ...dimensions }, components: [root, ...components] };
-  return { ...model, validation: validateFurnitureModel(model, generatedPieces) };
+  const baseModel = { furnitureType, modelVersion: 1, dimensions: { ...dimensions }, components: [root, ...components] };
+  const model = { ...baseModel, relations: buildFurnitureRelations(baseModel) };
+  const componentValidation = validateFurnitureModel(model, generatedPieces);
+  const relationValidation = validateFurnitureRelations(model);
+  return { ...model, validation: { valid: componentValidation.valid && relationValidation.valid, errors: [...componentValidation.errors, ...relationValidation.errors] } };
 }
 
 export function boundsFromCenter(dimensions, position) {
