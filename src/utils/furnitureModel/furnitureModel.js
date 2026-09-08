@@ -10,6 +10,13 @@ export const getComponentsByRole = (model, role) => model.components.filter((com
 export function getDescendants(model, parentId) {
   const descendants = []; const visit = (id) => getChildren(model, id).forEach((child) => { descendants.push(child); visit(child.id); }); visit(parentId); return descendants;
 }
+export function getAncestorIds(model, componentId) {
+  const byId = new Map((model?.components ?? []).map((component) => [component.id, component]));
+  const ancestors = []; let current = byId.get(componentId);
+  if (!current) return ancestors;
+  while (current.parentId && byId.has(current.parentId)) { current = byId.get(current.parentId); ancestors.unshift(current.id); }
+  return ancestors;
+}
 /** Physical selection expands logical nodes to their existing physical descendants. */
 export function getHighlightedComponentIds(model, selectedId) {
   const selected = getComponentById(model, selectedId); if (!selected) return new Set();

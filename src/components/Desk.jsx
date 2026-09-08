@@ -6,7 +6,7 @@ import MelaminePanel from "./MelaminePanel.jsx";
 const TOP = "#b07d4f";
 const DIVIDER = "#9a6840";
 
-export default function Desk({ width, height, depth, thickness, backThickness, drawerDimensions, structure, manufacturingPieces = [], highlightedComponentIds }) {
+export default function Desk({ width, height, depth, thickness, backThickness, drawerDimensions, structure, manufacturingPieces = [], highlightedComponentIds, onSelectComponent }) {
   const cut = (name, occurrence = 0) => findManufacturingPiece(manufacturingPieces, name, occurrence);
   const topPiece = cut("Tapa superior"), legPiece = cut("Lateral izquierdo"), dividerPiece = cut("Divisor módulo de cajones");
   const rearPiece = cut("Travesaño trasero"), bracePiece = cut("Refuerzo inferior módulo de cajones");
@@ -26,11 +26,11 @@ export default function Desk({ width, height, depth, thickness, backThickness, d
   const closedDrawerCenterZ = depth / 2 - drawerDepth / 2;
 
   return <group>
-    <MelaminePanel position={[0, height / 2 - thickness / 2, 0]} dimensions={[(topPiece?.length ?? width * 100) / 100, thickness, (topPiece?.width ?? depth * 100) / 100]} piece={topPiece} orientation="horizontal" color={TOP} highlighted={highlightedComponentIds?.has("desk.top")} />
-    <MelaminePanel position={[-width / 2 + thickness / 2, -thickness / 2, 0]} dimensions={[thickness, legHeight, (legPiece?.width ?? depth * 100) / 100]} piece={legPiece} orientation="side" highlighted={highlightedComponentIds?.has("desk.leftSide")} />
-    <MelaminePanel position={[width / 2 - thickness / 2, -thickness / 2, 0]} dimensions={[thickness, legHeight, (cut("Lateral derecho")?.width ?? depth * 100) / 100]} piece={cut("Lateral derecho")} orientation="side" highlighted={highlightedComponentIds?.has("desk.rightSide")} />
-    {structure.drawerCount > 0 && <MelaminePanel position={[dividerCenterX, -thickness / 2, thickness / 2]} dimensions={[thickness, (dividerPiece?.length ?? structure.legHeightCm) / 100, (dividerPiece?.width ?? (depth - thickness) * 100) / 100]} piece={dividerPiece} orientation="side" color={DIVIDER} highlighted={highlightedComponentIds?.has("desk.divider")} />}
-    <MelaminePanel position={[0, height / 2 - thickness - rearHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(rearPiece?.length ?? (width - thickness * 2) * 100) / 100, rearHeight, thickness]} piece={rearPiece} orientation="front" highlighted={highlightedComponentIds?.has("desk.rearCrossbar")} />
+    <MelaminePanel position={[0, height / 2 - thickness / 2, 0]} dimensions={[(topPiece?.length ?? width * 100) / 100, thickness, (topPiece?.width ?? depth * 100) / 100]} piece={topPiece} orientation="horizontal" color={TOP} highlighted={highlightedComponentIds?.has("desk.top")} componentId="desk.top" onSelectComponent={onSelectComponent} />
+    <MelaminePanel position={[-width / 2 + thickness / 2, -thickness / 2, 0]} dimensions={[thickness, legHeight, (legPiece?.width ?? depth * 100) / 100]} piece={legPiece} orientation="side" highlighted={highlightedComponentIds?.has("desk.leftSide")} componentId="desk.leftSide" onSelectComponent={onSelectComponent} />
+    <MelaminePanel position={[width / 2 - thickness / 2, -thickness / 2, 0]} dimensions={[thickness, legHeight, (cut("Lateral derecho")?.width ?? depth * 100) / 100]} piece={cut("Lateral derecho")} orientation="side" highlighted={highlightedComponentIds?.has("desk.rightSide")} componentId="desk.rightSide" onSelectComponent={onSelectComponent} />
+    {structure.drawerCount > 0 && <MelaminePanel position={[dividerCenterX, -thickness / 2, thickness / 2]} dimensions={[thickness, (dividerPiece?.length ?? structure.legHeightCm) / 100, (dividerPiece?.width ?? (depth - thickness) * 100) / 100]} piece={dividerPiece} orientation="side" color={DIVIDER} highlighted={highlightedComponentIds?.has("desk.divider")} componentId="desk.divider" onSelectComponent={onSelectComponent} />}
+    <MelaminePanel position={[0, height / 2 - thickness - rearHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(rearPiece?.length ?? (width - thickness * 2) * 100) / 100, rearHeight, thickness]} piece={rearPiece} orientation="front" highlighted={highlightedComponentIds?.has("desk.rearCrossbar")} componentId="desk.rearCrossbar" onSelectComponent={onSelectComponent} />
     {structure.drawerCount > 0 && <MelaminePanel position={[moduleCenterX, -height / 2 + braceHeight / 2, depth / 2 - thickness / 2]} dimensions={[openingWidth, braceHeight, thickness]} piece={bracePiece} orientation="front" color={DIVIDER} />}
 
     {structure.valid && structure.drawerLayouts.map((layout) => <group key={layout.index}>
@@ -48,6 +48,7 @@ export default function Desk({ width, height, depth, thickness, backThickness, d
         position={[moduleCenterX, 0, layout.centerZCm / 100]}
         drawerComponentId={`desk.drawer.${layout.index + 1}`}
         highlightedComponentIds={highlightedComponentIds}
+        onSelectComponent={onSelectComponent}
       />
       <DrawerSlides centerX={moduleCenterX} centerY={layout.slideCenterYCm / 100} closedCenterZ={closedDrawerCenterZ} drawerWidth={drawerWidth} drawerDepth={drawerDepth} slideThickness={slideThickness} slideHeight={slideHeight} openOffset={structure.drawerOpenOffsetCm / 100} />
     </group>)}

@@ -7,7 +7,7 @@ import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE } from "../s
 import { calculateDeskStructure, DEFAULT_DESK_CONFIG } from "../src/utils/deskStructure.js";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "../src/utils/tvStandStructure.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
-import { buildFurnitureModel, getComponentById, getComponentsByType, getDrawerComponentIds, getHighlightedComponentIds, normalizeFurnitureComponentSelection, validateFurnitureModel } from "../src/utils/furnitureModel/index.js";
+import { buildFurnitureModel, getAncestorIds, getComponentById, getComponentsByType, getDrawerComponentIds, getHighlightedComponentIds, normalizeFurnitureComponentSelection, validateFurnitureModel } from "../src/utils/furnitureModel/index.js";
 
 const materials = createMaterialConfig();
 const base = { widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, materialConfigs: materials };
@@ -60,6 +60,15 @@ test("selection highlights an exact physical component and handles null or inval
   assert.deepEqual([...getHighlightedComponentIds(model, "catHouse.frontOpening")], []);
   assert.deepEqual([...getHighlightedComponentIds(model, "missing")], []);
   assert.deepEqual([...getHighlightedComponentIds(model, null)], []);
+});
+
+test("ancestor paths are root-first for shallow and deeply nested components", () => {
+  const cat = modelFor("catHouse", { widthCm: 40, heightCm: 40, depthCm: 40, drawers: 0, shelves: 0 });
+  assert.deepEqual(getAncestorIds(cat, "catHouse.top"), ["catHouse.root"]);
+  const wardrobe = modelFor("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45] } });
+  assert.deepEqual(getAncestorIds(wardrobe, "wardrobe.body.1.drawer.2.front"), ["wardrobe.root", "wardrobe.body.1", "wardrobe.body.1.drawer.2"]);
+  assert.deepEqual(getAncestorIds(wardrobe, "missing"), []);
+  assert.deepEqual(getAncestorIds(wardrobe, null), []);
 });
 
 test("drawer ids are canonical and logical drawers expand to all rendered pieces", () => {

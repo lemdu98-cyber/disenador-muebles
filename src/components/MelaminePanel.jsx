@@ -4,11 +4,11 @@ import { Edges } from "@react-three/drei";
 import { getMelamineFaceColors } from "../utils/panelEdgeMaterials.js";
 import SelectionHighlight from "./SelectionHighlight.jsx";
 
-export default function MelaminePanel({ position, dimensions, piece, orientation, color = "#8b5a2b", opacity = 1, showEdges = true, highlighted = false }) {
+export default function MelaminePanel({ position, dimensions, piece, orientation, color = "#8b5a2b", opacity = 1, showEdges = true, highlighted = false, componentId, onSelectComponent }) {
   const faceColors = useMemo(() => getMelamineFaceColors({ color, edgeBanding: piece?.edgeBanding, orientation }), [color, piece?.edgeBanding, orientation]);
   const materials = useMemo(() => faceColors.map((faceColor) => new THREE.MeshStandardMaterial({ color: faceColor, transparent: opacity < 1, opacity })), [faceColors, opacity]);
   useEffect(() => () => materials.forEach((material) => material.dispose()), [materials]);
-  return <mesh position={position} castShadow receiveShadow>
+  return <mesh position={position} castShadow receiveShadow onClick={componentId ? (event) => { event.stopPropagation(); onSelectComponent?.(componentId); } : undefined}>
     <boxGeometry args={dimensions} />
     {materials.map((material, index) => <primitive key={index} object={material} attach={`material-${index}`} />)}
     {showEdges && <Edges color="#49382d" threshold={15} scale={1.001} />}

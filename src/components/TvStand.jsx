@@ -11,9 +11,9 @@ const BRACE = "#704421";
 const HARDBOARD = "#b98b5d";
 const SUPPORT = "#85512c";
 
-function Piece({ position, dimensions, piece, orientation, color = BODY, opacity = 1, melamine = true, highlighted = false }) {
-  if (melamine) return <MelaminePanel position={position} dimensions={dimensions} piece={piece} orientation={orientation} color={color} opacity={opacity} highlighted={highlighted} />;
-  return <mesh position={position} castShadow receiveShadow>
+function Piece({ position, dimensions, piece, orientation, color = BODY, opacity = 1, melamine = true, highlighted = false, componentId, onSelectComponent }) {
+  if (melamine) return <MelaminePanel position={position} dimensions={dimensions} piece={piece} orientation={orientation} color={color} opacity={opacity} highlighted={highlighted} componentId={componentId} onSelectComponent={onSelectComponent} />;
+  return <mesh position={position} castShadow receiveShadow onClick={componentId ? (event) => { event.stopPropagation(); onSelectComponent?.(componentId); } : undefined}>
     <boxGeometry args={dimensions} />
     <meshStandardMaterial color={color} transparent={opacity < 1} opacity={opacity} />
     <Edges color="#49382d" threshold={15} scale={1.001} />
@@ -21,7 +21,7 @@ function Piece({ position, dimensions, piece, orientation, color = BODY, opacity
   </mesh>;
 }
 
-export default function TvStand({ width, height, depth, thickness, backThickness, structure, manufacturingPieces = [], highlightedComponentIds }) {
+export default function TvStand({ width, height, depth, thickness, backThickness, structure, manufacturingPieces = [], highlightedComponentIds, onSelectComponent }) {
   const cut = (name) => findManufacturingPiece(manufacturingPieces, name);
   const topPiece = cut("Tapa superior"), sidePiece = cut("Lateral izquierdo"), basePiece = cut("Base inferior"), dividerPiece = cut("Divisor vertical central");
   const shelfPiece = cut(structure.config.dividerEnabled ? "Repisa izquierda" : "Repisa interior");
@@ -40,15 +40,15 @@ export default function TvStand({ width, height, depth, thickness, backThickness
   const inspectionOpacity = structure.config.showStructure ? .38 : 1;
 
   return <group>
-    <Piece position={[0, height / 2 - thickness / 2, 0]} dimensions={[(topPiece?.length ?? width * 100) / 100, thickness, (topPiece?.width ?? depth * 100) / 100]} piece={topPiece} orientation="horizontal" color={TOP} opacity={inspectionOpacity} highlighted={highlightedComponentIds?.has("tvStand.top")} />
-    <Piece position={[-width / 2 + thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, (sidePiece?.width ?? depth * 100) / 100]} piece={sidePiece} orientation="side" opacity={inspectionOpacity} highlighted={highlightedComponentIds?.has("tvStand.leftSide")} />
-    <Piece position={[width / 2 - thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, (cut("Lateral derecho")?.width ?? depth * 100) / 100]} piece={cut("Lateral derecho")} orientation="side" opacity={inspectionOpacity} highlighted={highlightedComponentIds?.has("tvStand.rightSide")} />
+    <Piece position={[0, height / 2 - thickness / 2, 0]} dimensions={[(topPiece?.length ?? width * 100) / 100, thickness, (topPiece?.width ?? depth * 100) / 100]} piece={topPiece} orientation="horizontal" color={TOP} opacity={inspectionOpacity} highlighted={highlightedComponentIds?.has("tvStand.top")} componentId="tvStand.top" onSelectComponent={onSelectComponent} />
+    <Piece position={[-width / 2 + thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, (sidePiece?.width ?? depth * 100) / 100]} piece={sidePiece} orientation="side" opacity={inspectionOpacity} highlighted={highlightedComponentIds?.has("tvStand.leftSide")} componentId="tvStand.leftSide" onSelectComponent={onSelectComponent} />
+    <Piece position={[width / 2 - thickness / 2, -thickness / 2, 0]} dimensions={[thickness, sideHeight, (cut("Lateral derecho")?.width ?? depth * 100) / 100]} piece={cut("Lateral derecho")} orientation="side" opacity={inspectionOpacity} highlighted={highlightedComponentIds?.has("tvStand.rightSide")} componentId="tvStand.rightSide" onSelectComponent={onSelectComponent} />
     <Piece position={[0, -height / 2 + thickness / 2, 0]} dimensions={[innerWidth, thickness, depth]} piece={basePiece} orientation="horizontal" />
-    {structure.config.dividerEnabled && <Piece position={[structure.dividerCenterXCm / 100, 0, thickness / 2]} dimensions={[thickness, dividerHeight, shelfDepth]} piece={dividerPiece} orientation="side" color={DIVIDER} highlighted={highlightedComponentIds?.has("tvStand.divider.1")} />}
-    {shelfCenters.map((center, index) => { const piece = cut(structure.config.dividerEnabled ? index ? "Repisa derecha" : "Repisa izquierda" : "Repisa interior"); return <Piece key={`shelf-${index}`} position={[center, shelfY, thickness / 2]} dimensions={[shelfSpans[index], thickness, shelfDepth]} piece={piece} orientation="horizontal" color={SHELF} highlighted={highlightedComponentIds?.has(`tvStand.shelf.${index + 1}`)} />; })}
-    {structure.config.dividerEnabled && structure.supportCentersXCm.map((center, index) => { const piece = cut(index ? "Soporte vertical derecho" : "Soporte vertical izquierdo"); return <Piece key={`support-${index}`} position={[center / 100, -height / 2 + thickness + supportHeight / 2, thickness / 2]} dimensions={[thickness, supportHeight, supportDepth]} piece={piece} orientation="side" color={SUPPORT} highlighted={highlightedComponentIds?.has(`tvStand.support.${index + 1}`)} />; })}
-    {structure.config.upperRearEnabled && <Piece position={[0, height / 2 - thickness - upperHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(upperPiece?.length ?? innerWidth * 100) / 100, upperHeight, thickness]} piece={upperPiece} orientation="front" color={BRACE} highlighted={highlightedComponentIds?.has("tvStand.rearCrossbar.superior")} />}
-    {structure.config.lowerRearEnabled && <Piece position={[0, -height / 2 + thickness + lowerHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(lowerPiece?.length ?? innerWidth * 100) / 100, lowerHeight, thickness]} piece={lowerPiece} orientation="front" color={BRACE} highlighted={highlightedComponentIds?.has("tvStand.rearCrossbar.inferior")} />}
-    {!structure.config.showStructure && <Piece position={[0, 0, -depth / 2 - backThickness / 2]} dimensions={[(backPiece?.length ?? width * 100) / 100, (backPiece?.width ?? height * 100) / 100, backThickness]} color={HARDBOARD} melamine={false} highlighted={highlightedComponentIds?.has("tvStand.back")} />}
+    {structure.config.dividerEnabled && <Piece position={[structure.dividerCenterXCm / 100, 0, thickness / 2]} dimensions={[thickness, dividerHeight, shelfDepth]} piece={dividerPiece} orientation="side" color={DIVIDER} highlighted={highlightedComponentIds?.has("tvStand.divider.1")} componentId="tvStand.divider.1" onSelectComponent={onSelectComponent} />}
+    {shelfCenters.map((center, index) => { const id = `tvStand.shelf.${index + 1}`; const piece = cut(structure.config.dividerEnabled ? index ? "Repisa derecha" : "Repisa izquierda" : "Repisa interior"); return <Piece key={`shelf-${index}`} position={[center, shelfY, thickness / 2]} dimensions={[shelfSpans[index], thickness, shelfDepth]} piece={piece} orientation="horizontal" color={SHELF} highlighted={highlightedComponentIds?.has(id)} componentId={id} onSelectComponent={onSelectComponent} />; })}
+    {structure.config.dividerEnabled && structure.supportCentersXCm.map((center, index) => { const id = `tvStand.support.${index + 1}`; const piece = cut(index ? "Soporte vertical derecho" : "Soporte vertical izquierdo"); return <Piece key={`support-${index}`} position={[center / 100, -height / 2 + thickness + supportHeight / 2, thickness / 2]} dimensions={[thickness, supportHeight, supportDepth]} piece={piece} orientation="side" color={SUPPORT} highlighted={highlightedComponentIds?.has(id)} componentId={id} onSelectComponent={onSelectComponent} />; })}
+    {structure.config.upperRearEnabled && <Piece position={[0, height / 2 - thickness - upperHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(upperPiece?.length ?? innerWidth * 100) / 100, upperHeight, thickness]} piece={upperPiece} orientation="front" color={BRACE} highlighted={highlightedComponentIds?.has("tvStand.rearCrossbar.superior")} componentId="tvStand.rearCrossbar.superior" onSelectComponent={onSelectComponent} />}
+    {structure.config.lowerRearEnabled && <Piece position={[0, -height / 2 + thickness + lowerHeight / 2, -depth / 2 + thickness / 2]} dimensions={[(lowerPiece?.length ?? innerWidth * 100) / 100, lowerHeight, thickness]} piece={lowerPiece} orientation="front" color={BRACE} highlighted={highlightedComponentIds?.has("tvStand.rearCrossbar.inferior")} componentId="tvStand.rearCrossbar.inferior" onSelectComponent={onSelectComponent} />}
+    {!structure.config.showStructure && <Piece position={[0, 0, -depth / 2 - backThickness / 2]} dimensions={[(backPiece?.length ?? width * 100) / 100, (backPiece?.width ?? height * 100) / 100, backThickness]} color={HARDBOARD} melamine={false} highlighted={highlightedComponentIds?.has("tvStand.back")} componentId="tvStand.back" onSelectComponent={onSelectComponent} />}
   </group>;
 }
