@@ -22,7 +22,7 @@ import ManufacturingStatus from "./components/ManufacturingStatus";
 import DesignLibrary from "./components/DesignLibrary";
 import FurnitureImageImporter from "./components/FurnitureImageImporter";
 import FurnitureModelInspector from "./components/FurnitureModelInspector";
-import { buildFurnitureModel } from "./utils/furnitureModel";
+import { buildFurnitureModel, getHighlightedComponentIds, normalizeFurnitureComponentSelection } from "./utils/furnitureModel";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -77,6 +77,7 @@ export default function App() {
   const [designMessage, setDesignMessage] = useState(null);
   const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
   const [imageImporterOpen, setImageImporterOpen] = useState(false);
+  const [selectedFurnitureComponentId, setSelectedFurnitureComponentId] = useState(null);
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
   const isNightstand = furnitureType === "nightstand";
@@ -134,6 +135,15 @@ export default function App() {
   // generatedPieces is intentionally an input: the projection validates its current source IDs.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [furnitureType, widthCm, heightCm, depthCm, drawers, shelves, generatedPieces, isNightstand, isDesk, isTvStand, isWardrobe, nightstandStructure, deskStructure, tvStandStructure, wardrobeStructure]);
+  const highlightedComponentIds = useMemo(
+    () => new Set(furnitureModel.model ? getHighlightedComponentIds(furnitureModel.model, selectedFurnitureComponentId) : []),
+    [furnitureModel, selectedFurnitureComponentId],
+  );
+  useEffect(() => {
+    if (!selectedFurnitureComponentId || normalizeFurnitureComponentSelection(furnitureModel.model, selectedFurnitureComponentId)) return;
+    const timer = window.setTimeout(() => setSelectedFurnitureComponentId(null), 0);
+    return () => window.clearTimeout(timer);
+  }, [furnitureModel, selectedFurnitureComponentId]);
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
   const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
@@ -339,7 +349,7 @@ export default function App() {
           return updated;
         })} />
         <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
-        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
+        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={setSelectedFurnitureComponentId} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
       </>}
     </aside>
     {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} optimizerSettings={optimizerSettings} setOptimizerSettings={setOptimizerSettings} /> : <section className="viewport">
@@ -348,7 +358,7 @@ export default function App() {
         <ambientLight intensity={1.4} />
         <directionalLight position={[4, 6, 4]} intensity={2.2} castShadow />
         <Bounds fit clip observe margin={1.12}>
-          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} manufacturingPieces={generatedPieces} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} manufacturingPieces={generatedPieces} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} manufacturingPieces={generatedPieces} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} manufacturingPieces={generatedPieces} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} manufacturingPieces={generatedPieces} />}
+          {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} />}
         </Bounds>
         <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
         <OrbitControls makeDefault minDistance={2} maxDistance={10} />
