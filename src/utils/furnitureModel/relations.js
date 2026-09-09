@@ -30,15 +30,15 @@ function relationCollector(model) {
     if (byId.has(sourceId) && byId.has(targetId) && sourceId !== targetId) relations.push(createFurnitureRelation(sourceId, type, targetId, metadata));
   };
   const addSupport = (sourceId, targetId, axis = "y") => {
-    if (componentsTouchOnAxis(byId.get(sourceId), byId.get(targetId), axis)) add(sourceId, "supported-by", targetId);
+    if (componentsTouchOnAxis(byId.get(sourceId), byId.get(targetId), axis)) add(sourceId, "supported-by", targetId, { axis });
   };
   return { byId, relations, add, addSupport };
 }
 
 const sideOf = (component, divider) => component?.position?.xCm < divider?.position?.xCm ? "left" : "right";
-const addConnectsPair = (add, sourceId, leftId, rightId) => {
-  add(sourceId, "connects", leftId, { side: "left" });
-  add(sourceId, "connects", rightId, { side: "right" });
+const addConnectsPair = (add, sourceId, leftId, rightId, axis = "x") => {
+  add(sourceId, "connects", leftId, { side: "left", axis });
+  add(sourceId, "connects", rightId, { side: "right", axis });
 };
 
 export function buildNightstandRelations(model) {
@@ -82,7 +82,7 @@ export function buildCatHouseRelations(model) {
   const { relations, add, addSupport } = relationCollector(model);
   addSupport("catHouse.top", "catHouse.leftSide");
   addSupport("catHouse.top", "catHouse.rightSide");
-  addConnectsPair(add, "catHouse.bottom", "catHouse.leftSide", "catHouse.rightSide");
+  addConnectsPair(add, "catHouse.bottom", "catHouse.leftSide", "catHouse.rightSide", "y");
   add("catHouse.back", "closes", "catHouse.root", { region: "rear" });
   return relations;
 }

@@ -10,3 +10,6 @@ export * from "./spatial.js";
 export * from "./relationTypes.js";
 export * from "./relations.js";
 export * from "./relationValidation.js";
+export * from "./diagnosticTypes.js";
+export * from "./diagnostics.js";
+export * from "./diagnosticValidation.js";

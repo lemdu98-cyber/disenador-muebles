@@ -7,7 +7,7 @@ import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE } from "../s
 import { calculateDeskStructure, DEFAULT_DESK_CONFIG } from "../src/utils/deskStructure.js";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "../src/utils/tvStandStructure.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
-import { buildFurnitureModel, buildFurnitureRelations, componentsTouchOnAxis, createFurnitureRelation, getAncestorIds, getComponentById, getComponentsByType, getDrawerComponentIds, getHighlightedComponentIds, getIncomingRelations, getOutgoingRelations, getRelationsByType, getRelationsForComponent, normalizeFurnitureComponentSelection, validateFurnitureModel, validateFurnitureRelations } from "../src/utils/furnitureModel/index.js";
+import { buildFurnitureDiagnostics, buildFurnitureModel, buildFurnitureRelations, componentsTouchOnAxis, createFurnitureDiagnostic, createFurnitureRelation, getAncestorIds, getComponentById, getComponentsByType, getDiagnosticsBySeverity, getDiagnosticsForComponent, getDrawerComponentIds, getHighlightedComponentIds, getIncomingRelations, getOutgoingRelations, getRelationsByType, getRelationsForComponent, normalizeFurnitureComponentSelection, summarizeFurnitureDiagnostics, validateFurnitureDiagnostics, validateFurnitureModel, validateFurnitureRelations } from "../src/utils/furnitureModel/index.js";
 
 const materials = createMaterialConfig();
 const base = { widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, materialConfigs: materials };
@@ -207,4 +207,82 @@ test("all default legacy models have valid relations and rebuilding relations mu
   const generatedSnapshot = structuredClone(input.generatedPieces); const configSnapshot = structuredClone(config); const model = buildFurnitureModel(input); const modelSnapshot = structuredClone(model);
   assert.deepEqual(buildFurnitureRelations(model), model.relations);
   assert.deepEqual(model, modelSnapshot); assert.deepEqual(input.generatedPieces, generatedSnapshot); assert.deepEqual(config, configSnapshot);
+});
+
+const rebuildDiagnostics = (model, mutate) => {
+  const altered = structuredClone(model); mutate(altered);
+  altered.diagnostics = buildFurnitureDiagnostics(altered);
+  return altered;
+};
+
+test("valid asymmetric and legacy models produce deterministic, valid and quiet diagnostics", () => {
+  const cases = [
+    ["nightstand", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 2, shelves: 0, nightstandStructureConfig: { ...DEFAULT_NIGHTSTAND_STRUCTURE, drawerHeightRatios: [.4, .6] } }],
+    ["desk", { widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0, deskConfig: { ...DEFAULT_DESK_CONFIG, drawerModuleSide: "right", drawerModuleWidthRatio: .35 } }],
+    ["desk", { widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0, deskConfig: { ...DEFAULT_DESK_CONFIG, drawerModuleSide: "left", drawerModuleWidthRatio: .35 } }],
+    ["tvStand", { widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0, tvStandConfig: { ...DEFAULT_TV_STAND_CONFIG, sectionWidthRatios: [.35, .65] } }],
+    ["catHouse", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 0, shelves: 0 }],
+    ["wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45], doorType: "hinged" } }],
+    ["wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45], doorType: "sliding" } }],
+  ];
+  for (const [type, options] of cases) {
+    const first = modelFor(type, options); const second = modelFor(type, options);
+    assert.deepEqual(first.diagnostics, []); assert.deepEqual(first.diagnostics, second.diagnostics);
+    assert.equal(first.diagnosticValidation.valid, true); assert.deepEqual(summarizeFurnitureDiagnostics(first), { errors: 0, warnings: 0, info: 0 });
+  }
+});
+
+test("a separated supported-by relation reports MISSING_EXPECTED_SUPPORT", () => {
+  const model = rebuildDiagnostics(modelFor("tvStand", { widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0 }), (altered) => {
+    const shelf = getComponentById(altered, "tvStand.shelf.1"); shelf.bounds.minY += 1; shelf.bounds.maxY += 1;
+  });
+  const diagnostic = getDiagnosticsForComponent(model, "tvStand.shelf.1").find(({ code }) => code === "MISSING_EXPECTED_SUPPORT");
+  assert.equal(diagnostic.severity, "error"); assert.deepEqual(diagnostic.relatedComponentIds, ["tvStand.support.1"]); assert.equal(diagnostic.metadata.axis, "y");
+});
+
+test("a disconnected crossbar reports MISSING_EXPECTED_CONNECTION", () => {
+  const model = rebuildDiagnostics(modelFor("nightstand", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 2, shelves: 0 }), (altered) => {
+    const crossbar = getComponentById(altered, "nightstand.frontCrossbar"); crossbar.bounds.minX += 2; crossbar.bounds.maxX -= 2;
+  });
+  assert.equal(getDiagnosticsForComponent(model, "nightstand.frontCrossbar").filter(({ code }) => code === "MISSING_EXPECTED_CONNECTION").length, 2);
+});
+
+test("a drawer outside its related body reports OUTSIDE_EXPECTED_CONTAINER", () => {
+  const model = rebuildDiagnostics(modelFor("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45] } }), (altered) => {
+    const drawer = getComponentById(altered, "wardrobe.body.1.drawer.1"); drawer.bounds.minX += 200; drawer.bounds.maxX += 200;
+  });
+  assert.ok(getDiagnosticsForComponent(model, "wardrobe.body.1.drawer.1").some(({ code, severity }) => code === "OUTSIDE_EXPECTED_CONTAINER" && severity === "error"));
+});
+
+test("a divider outside the regions reports INVALID_SEPARATION_POSITION", () => {
+  const model = rebuildDiagnostics(modelFor("desk", { widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0, deskConfig: { ...DEFAULT_DESK_CONFIG, drawerModuleSide: "right", drawerModuleWidthRatio: .35 } }), (altered) => {
+    const divider = getComponentById(altered, "desk.divider"); divider.bounds.minX += 200; divider.bounds.maxX += 200;
+  });
+  assert.ok(getDiagnosticsForComponent(model, "desk.divider").some(({ code }) => code === "INVALID_SEPARATION_POSITION"));
+});
+
+test("reduced back coverage reports INSUFFICIENT_COVERAGE as a warning", () => {
+  const model = rebuildDiagnostics(modelFor("catHouse", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 0, shelves: 0 }), (altered) => {
+    getComponentById(altered, "catHouse.back").bounds.maxX -= 5;
+  });
+  const diagnostic = getDiagnosticsForComponent(model, "catHouse.back").find(({ code }) => code === "INSUFFICIENT_COVERAGE");
+  assert.equal(diagnostic.severity, "warning"); assert.equal(getDiagnosticsBySeverity(model, "warning").length, 1);
+});
+
+test("diagnostic validation rejects bad codes, severity, components, related ids and duplicates", () => {
+  const diagnostic = createFurnitureDiagnostic({ code: "BAD_CODE", severity: "fatal", componentId: "missing", relatedComponentIds: ["also-missing"], message: "Invalid fixture." });
+  const result = validateFurnitureDiagnostics({ components: [{ id: "root" }], diagnostics: [diagnostic, diagnostic] });
+  assert.equal(result.valid, false);
+  ["Duplicate", "Invalid diagnostic code", "Invalid diagnostic severity", "Unknown diagnostic component", "Unknown diagnostic related component"].forEach((message) => assert.ok(result.errors.some((error) => error.includes(message))));
+});
+
+test("diagnostic order is stable and building diagnostics does not mutate the model", () => {
+  const source = rebuildDiagnostics(modelFor("catHouse", { widthCm: 50, heightCm: 55, depthCm: 40, drawers: 0, shelves: 0 }), (altered) => {
+    const top = getComponentById(altered, "catHouse.top"); top.bounds.minY += 1; top.bounds.maxY += 1;
+    getComponentById(altered, "catHouse.back").bounds.maxX -= 5;
+  });
+  const snapshot = structuredClone(source); const first = buildFurnitureDiagnostics(source); const second = buildFurnitureDiagnostics(source);
+  assert.deepEqual(first, second); assert.deepEqual(source, snapshot);
+  assert.deepEqual(first.map(({ severity }) => severity), ["error", "error", "warning"]);
+  assert.ok(first[0].id.localeCompare(first[1].id) < 0);
 });
