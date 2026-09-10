@@ -8,6 +8,7 @@ import { calculateDeskStructure, DEFAULT_DESK_CONFIG } from "../src/utils/deskSt
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG } from "../src/utils/tvStandStructure.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
 import { buildFurnitureDiagnostics, buildFurnitureModel, buildFurnitureRegions, createPlanarRegion, getCoverageRatio, getHorizontalGap, getOverlap, getRegionById, getRegionHeight, getRegionsByRole, getRegionsForComponent, getRegionWidth, validateFurnitureRegions } from "../src/utils/furnitureModel/index.js";
+import { buildRegionDimensionData, buildRegionOverlayData, cmToMeters, dimensionToMeters, normalizeSelectedRegionId } from "../src/utils/furnitureRegionOverlay.js";
 
 const materials = createMaterialConfig();
 const base = { widthCm: 250, heightCm: 230, depthCm: 60, drawers: 6, shelves: 3, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, materialConfigs: materials };
@@ -92,4 +93,35 @@ test("regions and their order are deterministic for legacy configurations", () =
 test("rebuilding regions is pure and mutates neither model nor resolved context", () => {
   const { input, model } = fixture("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, doorType: "sliding" } }); const modelSnapshot = structuredClone(model); const inputSnapshot = structuredClone(input);
   assert.deepEqual(buildFurnitureRegions(model, input), model.regions); assert.deepEqual(model, modelSnapshot); assert.deepEqual(input, inputSnapshot);
+});
+
+test("DEV overlay adapter centralizes cm to meters and preserves canonical regions", () => {
+  const { model } = fixture("catHouse", { widthCm: 40, heightCm: 40, depthCm: 40, drawers: 0, shelves: 0 }); const snapshot = structuredClone(model.regions);
+  const [overlay] = buildRegionOverlayData(model.regions);
+  assert.equal(cmToMeters(37), .37); assert.equal(overlay.widthM, .37); assert.equal(overlay.heightM, .37); assert.deepEqual(model.regions, snapshot);
+});
+
+test("selected region normalization accepts valid ids and clears invalid or null ids", () => {
+  const cat = fixture("catHouse", { widthCm: 40, heightCm: 40, depthCm: 40, drawers: 0, shelves: 0 }).model; const id = cat.regions[0].id;
+  assert.equal(normalizeSelectedRegionId(cat, id), id); assert.equal(normalizeSelectedRegionId(cat, "missing"), null); assert.equal(normalizeSelectedRegionId(cat, null), null);
+  assert.equal(normalizeSelectedRegionId(fixture("tvStand", { widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0 }).model, id), null);
+});
+
+test("overlay role filters expose component regions without inventing TV Stand data", () => {
+  const desk = fixture("desk", { widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0, deskConfig: { ...DEFAULT_DESK_CONFIG, drawerModuleWidthRatio: .35 } }).model;
+  assert.equal(buildRegionOverlayData(desk.regions, "openings").length, 3); assert.equal(buildRegionOverlayData(desk.regions, "drawers").length, 3); assert.equal(getRegionsForComponent(desk, "desk.drawer.1.front").length, 1);
+  assert.deepEqual(buildRegionOverlayData(fixture("tvStand", { widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0 }).model.regions), []);
+});
+
+test("hinged debug dimensions reuse canonical gap helpers and retain configured intent", () => {
+  const { model } = fixture("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, sectionWidthRatios: [.2, .35, .45], doorType: "hinged" } });
+  const dimensions = buildRegionDimensionData(model.regions); const horizontal = dimensions.filter(({ axis }) => axis === "x"); const vertical = dimensions.filter(({ axis }) => axis === "y");
+  assert.equal(horizontal.length, 4); assert.equal(vertical.length, 3); assert.ok(horizontal.every(({ expectedCm }) => expectedCm === .3)); assert.ok(vertical.every(({ valueCm }) => Math.abs(valueCm - .3) < 1e-9));
+  assert.equal(dimensionToMeters(vertical[0]).points[0][0], vertical[0].endpointsCm[0][0] / 100);
+});
+
+test("sliding debug dimensions expose two exact four-centimetre overlaps", () => {
+  const { model } = fixture("wardrobe", { wardrobeConfig: { ...DEFAULT_WARDROBE_CONFIG, doorType: "sliding", slidingDoorOverlapCm: 4 } });
+  const dimensions = buildRegionDimensionData(model.regions);
+  assert.deepEqual(dimensions.map(({ type, valueCm }) => [type, valueCm]), [["overlap", 4], ["overlap", 4]]);
 });

@@ -22,7 +22,9 @@ import ManufacturingStatus from "./components/ManufacturingStatus";
 import DesignLibrary from "./components/DesignLibrary";
 import FurnitureImageImporter from "./components/FurnitureImageImporter";
 import FurnitureModelInspector from "./components/FurnitureModelInspector";
+import FurnitureRegionOverlay from "./components/FurnitureRegionOverlay";
 import { buildFurnitureModel, getHighlightedComponentIds, normalizeFurnitureComponentSelection } from "./utils/furnitureModel";
+import { normalizeSelectedRegionId } from "./utils/furnitureRegionOverlay";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "./utils/drawerFront";
@@ -78,6 +80,10 @@ export default function App() {
   const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
   const [imageImporterOpen, setImageImporterOpen] = useState(false);
   const [selectedFurnitureComponentId, setSelectedFurnitureComponentId] = useState(null);
+  const [selectedFurnitureRegionId, setSelectedFurnitureRegionId] = useState(null);
+  const [showFurnitureRegions, setShowFurnitureRegions] = useState(false);
+  const [showFurnitureRegionDimensions, setShowFurnitureRegionDimensions] = useState(false);
+  const [furnitureRegionFilter, setFurnitureRegionFilter] = useState("all");
   const onSelectFurnitureComponent = useCallback((componentId) => setSelectedFurnitureComponentId(componentId), []);
   const isDesk = furnitureType === "desk";
   const isTvStand = furnitureType === "tvStand";
@@ -145,6 +151,21 @@ export default function App() {
     const timer = window.setTimeout(() => setSelectedFurnitureComponentId(null), 0);
     return () => window.clearTimeout(timer);
   }, [furnitureModel, selectedFurnitureComponentId]);
+  useEffect(() => {
+    if (!selectedFurnitureRegionId || normalizeSelectedRegionId(furnitureModel.model, selectedFurnitureRegionId)) return;
+    const timer = window.setTimeout(() => setSelectedFurnitureRegionId(null), 0);
+    return () => window.clearTimeout(timer);
+  }, [furnitureModel, selectedFurnitureRegionId]);
+  const onSelectFurnitureRegion = useCallback((regionId) => {
+    setSelectedFurnitureRegionId(regionId);
+    if (!regionId) return;
+    const region = furnitureModel.model?.regions?.find(({ id }) => id === regionId);
+    if (region?.componentId) setSelectedFurnitureComponentId(region.componentId);
+  }, [furnitureModel]);
+  const onShowFurnitureRegionsChange = useCallback((show) => {
+    setShowFurnitureRegions(show);
+    if (!show) { setSelectedFurnitureRegionId(null); setShowFurnitureRegionDimensions(false); }
+  }, []);
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
   const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
@@ -350,7 +371,7 @@ export default function App() {
           return updated;
         })} />
         <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
-        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={onSelectFurnitureComponent} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
+        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={onSelectFurnitureComponent} showRegions={showFurnitureRegions} onShowRegionsChange={onShowFurnitureRegionsChange} showRegionDimensions={showFurnitureRegionDimensions} onShowRegionDimensionsChange={setShowFurnitureRegionDimensions} regionFilter={furnitureRegionFilter} onRegionFilterChange={setFurnitureRegionFilter} selectedRegionId={selectedFurnitureRegionId} onSelectRegion={onSelectFurnitureRegion} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
       </>}
     </aside>
     {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} optimizerSettings={optimizerSettings} setOptimizerSettings={setOptimizerSettings} /> : <section className="viewport">
@@ -361,6 +382,7 @@ export default function App() {
         <Bounds fit clip observe margin={1.12}>
           {isCatHouse ? <CatHouse width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} onSelectComponent={onSelectFurnitureComponent} /> : isDesk ? <Desk width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} structure={deskStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} onSelectComponent={onSelectFurnitureComponent} /> : isTvStand ? <TvStand width={width} height={height} depth={depth} thickness={melamineThickness} backThickness={hardboardThickness} structure={tvStandStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} onSelectComponent={onSelectFurnitureComponent} /> : isNightstand ? <Nightstand width={width} height={height} depth={depth} drawers={drawers} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={nightstandStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} onSelectComponent={onSelectFurnitureComponent} /> : <Wardrobe width={width} height={height} depth={depth} drawers={drawers} shelves={shelves} thickness={melamineThickness} backThickness={hardboardThickness} drawerDimensions={drawerDimensions} drawerFrontConfig={drawerFrontConfig} structure={wardrobeStructure} manufacturingPieces={generatedPieces} highlightedComponentIds={highlightedComponentIds} onSelectComponent={onSelectFurnitureComponent} />}
         </Bounds>
+        {import.meta.env.DEV && showFurnitureRegions && furnitureModel.model && <FurnitureRegionOverlay regions={furnitureModel.model.regions} selectedRegionId={selectedFurnitureRegionId} selectedComponentId={selectedFurnitureComponentId} onSelectRegion={onSelectFurnitureRegion} filter={furnitureRegionFilter} showDimensions={showFurnitureRegionDimensions} />}
         <Grid args={[10, 10]} cellSize={0.25} cellThickness={0.6} cellColor="#c7bdb0" sectionSize={1} sectionColor="#a99b8a" fadeDistance={8} />
         <OrbitControls makeDefault minDistance={2} maxDistance={10} />
       </Canvas>
