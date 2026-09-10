@@ -1,6 +1,8 @@
 import { DIAGNOSTIC_SEVERITY_ORDER } from "./diagnosticTypes.js";
 import { RELATION_CONTACT_EPSILON_CM } from "./relationTypes.js";
 import { componentsTouchOnAxis } from "./relations.js";
+import { FRONT_REGION_EPSILON_CM } from "./regionTypes.js";
+import { getCombinedCoverageRatio, getCoverageRatio, getHorizontalGap, getOverlap, getRegionById, getVerticalGap } from "./regions.js";
 
 const AXIS_BOUNDS = Object.freeze({ x: ["minX", "maxX"], y: ["minY", "maxY"], z: ["minZ", "maxZ"] });
 
@@ -112,8 +114,48 @@ export function buildGeneralDiagnostics(model) {
   return diagnostics;
 }
 
+const regionDiagnostic = (code, componentId, relatedComponentIds, message, metadata) => createFurnitureDiagnostic({ code, severity: "warning", componentId, relatedComponentIds, message, metadata: { source: "region", ...metadata } });
+
+function compareExpectedGap(diagnostics, first, second, actual, expected, axis) {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected) || Math.abs(actual - expected) <= FRONT_REGION_EPSILON_CM) return;
+  const tooSmall = actual < expected;
+  diagnostics.push(regionDiagnostic(tooSmall ? "DOOR_GAP_TOO_SMALL" : "DOOR_GAP_TOO_LARGE", second.componentId, [first.componentId], `${axis} door gap is ${actual.toFixed(3)} cm; expected ${expected.toFixed(3)} cm.`, { firstRegionId: first.id, secondRegionId: second.id, axis, actualGapCm: actual, expectedGapCm: expected, epsilonCm: FRONT_REGION_EPSILON_CM }));
+}
+
+export function buildRegionDiagnostics(model) {
+  const diagnostics = [];
+  const fronts = (model?.regions ?? []).filter(({ role }) => ["door-front", "drawer-front-region"].includes(role));
+  fronts.forEach((front) => {
+    if (front.metadata?.coverageKind === "sliding") return;
+    const target = getRegionById(model, front.metadata?.targetRegionId); const ratio = getCoverageRatio(front, target);
+    if (ratio == null || ratio >= 1 - FRONT_REGION_EPSILON_CM) return;
+    const drawer = front.role === "drawer-front-region";
+    diagnostics.push(regionDiagnostic(drawer ? "DRAWER_FRONT_COVERAGE_MISMATCH" : "DOOR_COVERAGE_INSUFFICIENT", front.componentId, target?.componentId && target.componentId !== front.componentId ? [target.componentId] : [], `${front.id} covers ${(ratio * 100).toFixed(2)}% of ${target.id}.`, { sourceRegionId: front.id, targetRegionId: target.id, coverageRatio: ratio, epsilonCm: FRONT_REGION_EPSILON_CM }));
+  });
+  const horizontalGroups = new Map();
+  fronts.filter(({ metadata }) => metadata?.horizontalGapGroup).forEach((region) => { const key = region.metadata.horizontalGapGroup; horizontalGroups.set(key, [...(horizontalGroups.get(key) ?? []), region]); });
+  horizontalGroups.forEach((group) => group.sort((a, b) => a.region.minX - b.region.minX).forEach((region, index) => { if (index) compareExpectedGap(diagnostics, group[index - 1], region, getHorizontalGap(group[index - 1], region), region.metadata.expectedHorizontalGapCm, "horizontal"); }));
+  const verticalGroups = new Map();
+  fronts.filter(({ metadata }) => metadata?.verticalGapGroup).forEach((region) => { const key = region.metadata.verticalGapGroup; verticalGroups.set(key, [...(verticalGroups.get(key) ?? []), region]); });
+  verticalGroups.forEach((group) => { const sorted = group.sort((a, b) => a.region.minY - b.region.minY); if (sorted.length === 2) compareExpectedGap(diagnostics, sorted[0], sorted[1], getVerticalGap(sorted[0], sorted[1]), sorted[1].metadata.expectedVerticalGapCm, "vertical"); });
+  const slidingGroups = new Map();
+  fronts.filter(({ metadata }) => metadata?.coverageKind === "sliding").forEach((region) => { const key = region.metadata.coverageGroup; slidingGroups.set(key, [...(slidingGroups.get(key) ?? []), region]); });
+  slidingGroups.forEach((group, key) => {
+    const sorted = group.sort((a, b) => a.region.minX - b.region.minX);
+    sorted.forEach((region, index) => {
+      if (!index) return; const previous = sorted[index - 1]; const actual = getOverlap(previous, region); const expected = region.metadata.expectedOverlapCm;
+      if (Math.abs(actual - expected) <= FRONT_REGION_EPSILON_CM) return;
+      const tooSmall = actual < expected;
+      diagnostics.push(regionDiagnostic(tooSmall ? "SLIDING_OVERLAP_TOO_SMALL" : "SLIDING_OVERLAP_TOO_LARGE", region.componentId, [previous.componentId], `Sliding overlap is ${actual.toFixed(3)} cm; expected ${expected.toFixed(3)} cm.`, { firstRegionId: previous.id, secondRegionId: region.id, actualOverlapCm: actual, expectedOverlapCm: expected, epsilonCm: FRONT_REGION_EPSILON_CM }));
+    });
+    const target = (model.regions ?? []).find(({ metadata }) => metadata?.coveredByGroup === key); const ratio = getCombinedCoverageRatio(sorted, target);
+    if (target && ratio < 1 - FRONT_REGION_EPSILON_CM) diagnostics.push(regionDiagnostic("DOOR_COVERAGE_INSUFFICIENT", sorted[0].componentId, sorted.slice(1).map(({ componentId }) => componentId), `Sliding leaves cover ${(ratio * 100).toFixed(2)}% of ${target.id}.`, { sourceRegionIds: sorted.map(({ id }) => id), targetRegionId: target.id, coverageRatio: ratio, epsilonCm: FRONT_REGION_EPSILON_CM }));
+  });
+  return diagnostics;
+}
+
 export function buildFurnitureDiagnostics(model) {
-  return buildGeneralDiagnostics(model).sort((left, right) => DIAGNOSTIC_SEVERITY_ORDER[left.severity] - DIAGNOSTIC_SEVERITY_ORDER[right.severity] || left.componentId.localeCompare(right.componentId) || left.code.localeCompare(right.code) || left.id.localeCompare(right.id));
+  return [...buildGeneralDiagnostics(model), ...buildRegionDiagnostics(model)].sort((left, right) => DIAGNOSTIC_SEVERITY_ORDER[left.severity] - DIAGNOSTIC_SEVERITY_ORDER[right.severity] || left.componentId.localeCompare(right.componentId) || left.code.localeCompare(right.code) || left.id.localeCompare(right.id));
 }
 
 export const getDiagnosticsForComponent = (model, componentId) => (model?.diagnostics ?? []).filter(({ componentId: directId }) => directId === componentId);

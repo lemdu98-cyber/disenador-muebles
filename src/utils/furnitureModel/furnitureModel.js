@@ -5,6 +5,8 @@ import { buildFurnitureRelations } from "./relations.js";
 import { validateFurnitureRelations } from "./relationValidation.js";
 import { buildFurnitureDiagnostics } from "./diagnostics.js";
 import { validateFurnitureDiagnostics } from "./diagnosticValidation.js";
+import { buildFurnitureRegions } from "./regions.js";
+import { validateFurnitureRegions } from "./regionValidation.js";
 
 export const getComponentById = (model, id) => model.components.find((component) => component.id === id) ?? null;
 export const normalizeFurnitureComponentSelection = (model, selectedId) => selectedId && model?.components?.some((component) => component.id === selectedId) ? selectedId : null;
@@ -39,15 +41,17 @@ export function getDrawerComponentIds(baseId) {
   };
 }
 
-export function createFurnitureModel({ furnitureType, dimensions, components, generatedPieces }) {
+export function createFurnitureModel({ furnitureType, dimensions, components, generatedPieces, regionContext = {} }) {
   const rootId = `${furnitureType}.root`;
   const root = createComponent({ id: rootId, type: "section", role: "root", dimensions, position: { xCm: 0, yCm: 0, zCm: 0 }, bounds: boundsFromCenter(dimensions, { xCm: 0, yCm: 0, zCm: 0 }), metadata: { semanticId: rootId } });
   const baseModel = { furnitureType, modelVersion: 1, dimensions: { ...dimensions }, components: [root, ...components] };
-  const relatedModel = { ...baseModel, relations: buildFurnitureRelations(baseModel) };
+  const regionModel = { ...baseModel, regions: buildFurnitureRegions(baseModel, regionContext) };
+  const relatedModel = { ...regionModel, relations: buildFurnitureRelations(regionModel) };
   const model = { ...relatedModel, diagnostics: buildFurnitureDiagnostics(relatedModel) };
   const componentValidation = validateFurnitureModel(model, generatedPieces);
   const relationValidation = validateFurnitureRelations(model);
-  return { ...model, diagnosticValidation: validateFurnitureDiagnostics(model), validation: { valid: componentValidation.valid && relationValidation.valid, errors: [...componentValidation.errors, ...relationValidation.errors] } };
+  const regionValidation = validateFurnitureRegions(model);
+  return { ...model, regionValidation, diagnosticValidation: validateFurnitureDiagnostics(model), validation: { valid: componentValidation.valid && relationValidation.valid && regionValidation.valid, errors: [...componentValidation.errors, ...relationValidation.errors, ...regionValidation.errors] } };
 }
 
 export function boundsFromCenter(dimensions, position) {

@@ -13,3 +13,6 @@ export * from "./relationValidation.js";
 export * from "./diagnosticTypes.js";
 export * from "./diagnostics.js";
 export * from "./diagnosticValidation.js";
+export * from "./regionTypes.js";
+export * from "./regions.js";
+export * from "./regionValidation.js";

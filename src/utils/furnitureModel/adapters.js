@@ -8,7 +8,7 @@ const named = (pieces, name) => pieces.find((item) => item.name === name);
 const orientationFor = (type, role) => type === "drawer-front" || type === "door" || type === "back" || type === "crossbar" ? "front" : type === "divider" || /side|support/i.test(role) ? "side" : "horizontal";
 const physical = (components, id, type, role, item, parentId, metadata) => { if (item) { const orientation = orientationFor(type, role); components.push(componentFromPiece({ id, type, role, piece: item, parentId, orientation, metadata: { orientation, allowParentOverflow: type === "back" || type === "door" || type === "drawer-front", ...metadata } })); } };
 const place = (components, id, position) => { const component = components.find((candidate) => candidate.id === id); if (!component) return; component.position = position; component.bounds = getComponentBounds(component); };
-const finish = (furnitureType, input, components) => createFurnitureModel({ furnitureType, dimensions: input, components, generatedPieces: input.generatedPieces });
+const finish = (furnitureType, input, components) => createFurnitureModel({ furnitureType, dimensions: input, components, generatedPieces: input.generatedPieces, regionContext: input });
 
 export function adaptNightstandToFurnitureModel(input) {
   const { generatedPieces: pieces, structure } = input; const c = [];
