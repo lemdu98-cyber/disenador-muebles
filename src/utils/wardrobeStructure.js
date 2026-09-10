@@ -58,6 +58,11 @@ export function getWardrobeSectionGeometry({ widthCm, thicknessCm, sectionWidthR
   return { innerTotalWidthCm, theoreticalSectionWidthsCm, sectionWidthsCm, sectionStartXCm, bodyCentersXCm, dividerPositionsCm, panelCentersXCm, sectionWidthRatios: normalized.ratios, ratiosValid: normalized.valid, ratioError: normalized.error };
 }
 
+export function getWardrobeMinimumSectionWidthsCm({ thicknessCm, drawerDimensions }) {
+  const drawerMinimumWidthCm = Math.max(45, (drawerDimensions?.totalClearanceCm || 0) + num(thicknessCm) * 2 + 12);
+  return [drawerMinimumWidthCm, 45, drawerMinimumWidthCm];
+}
+
 export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thicknessCm, bottomThicknessCm = .3, shelves = 3, drawerDimensions, wardrobeConfig }) {
   const config = { ...DEFAULT_WARDROBE_CONFIG, ...wardrobeConfig };
   const bodyCount = 3;
@@ -147,10 +152,10 @@ export function calculateWardrobeStructure({ widthCm, heightCm, depthCm, thickne
   const errors = [];
   if (!sectionGeometry.ratiosValid) errors.push(sectionGeometry.ratioError);
   if (widthCm <= thicknessCm * 4 || heightCm <= thicknessCm * 3 || depthCm <= thicknessCm * 2) errors.push("Las dimensiones exteriores no permiten construir tres cuerpos.");
-  const drawerMinimumWidthCm = Math.max(45, (drawerDimensions?.totalClearanceCm || 0) + thicknessCm * 2 + 12);
-  if (sectionWidthsCm[0] < drawerMinimumWidthCm) errors.push(`El Cuerpo 1 necesita al menos ${drawerMinimumWidthCm.toFixed(1)} cm interiores para cajones y correderas.`);
-  if (sectionWidthsCm[1] < 45) errors.push("El Cuerpo 2 necesita al menos 45 cm interiores para perchero y zapatero.");
-  if (sectionWidthsCm[2] < drawerMinimumWidthCm) errors.push(`El Cuerpo 3 necesita al menos ${drawerMinimumWidthCm.toFixed(1)} cm interiores para cajones y correderas.`);
+  const minimumSectionWidthsCm = getWardrobeMinimumSectionWidthsCm({ thicknessCm, drawerDimensions });
+  if (sectionWidthsCm[0] < minimumSectionWidthsCm[0]) errors.push(`El Cuerpo 1 necesita al menos ${minimumSectionWidthsCm[0].toFixed(1)} cm interiores para cajones y correderas.`);
+  if (sectionWidthsCm[1] < minimumSectionWidthsCm[1]) errors.push(`El Cuerpo 2 necesita al menos ${minimumSectionWidthsCm[1].toFixed(1)} cm interiores para perchero y zapatero.`);
+  if (sectionWidthsCm[2] < minimumSectionWidthsCm[2]) errors.push(`El Cuerpo 3 necesita al menos ${minimumSectionWidthsCm[2].toFixed(1)} cm interiores para cajones y correderas.`);
   if (upperCompartmentHeightCm < 25 || upperCompartmentHeightCm > heightCm * .3) errors.push("El compartimento superior debe tener una altura útil razonable.");
   if (lowerCrossbarHeightCm < 5 || lowerCrossbarHeightCm >= drawerRegionHeightCm / 2) errors.push("La altura del travesaño inferior debe ser estructuralmente útil y compatible con los cajones.");
   if (shoeShelfCount < WARDROBE_LIMITS.shoeShelves.min || shoeShelfCount > WARDROBE_LIMITS.shoeShelves.max) errors.push(`El zapatero admite entre ${WARDROBE_LIMITS.shoeShelves.min} y ${WARDROBE_LIMITS.shoeShelves.max} repisas.`);

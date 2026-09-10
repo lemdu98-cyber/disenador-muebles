@@ -16,3 +16,5 @@ export * from "./diagnosticValidation.js";
 export * from "./regionTypes.js";
 export * from "./regions.js";
 export * from "./regionValidation.js";
+export * from "./editableProperties.js";
+export * from "./editAdapter.js";

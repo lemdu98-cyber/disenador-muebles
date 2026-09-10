@@ -23,7 +23,7 @@ import DesignLibrary from "./components/DesignLibrary";
 import FurnitureImageImporter from "./components/FurnitureImageImporter";
 import FurnitureModelInspector from "./components/FurnitureModelInspector";
 import FurnitureRegionOverlay from "./components/FurnitureRegionOverlay";
-import { buildFurnitureModel, getHighlightedComponentIds, normalizeFurnitureComponentSelection } from "./utils/furnitureModel";
+import { applyFurnitureModelEdit, buildFurnitureModel, getHighlightedComponentIds, normalizeFurnitureComponentSelection } from "./utils/furnitureModel";
 import { normalizeSelectedRegionId } from "./utils/furnitureRegionOverlay";
 import { createMaterialConfig } from "./utils/materialConfig";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "./utils/drawerSlides";
@@ -166,6 +166,12 @@ export default function App() {
     setShowFurnitureRegions(show);
     if (!show) { setSelectedFurnitureRegionId(null); setShowFurnitureRegionDimensions(false); }
   }, []);
+  const furnitureEditContext = useMemo(() => ({ widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, bottomThicknessCm: hardboardThickness * 100, shelves, drawerDimensions }), [widthCm, heightCm, depthCm, melamineThickness, hardboardThickness, shelves, drawerDimensions]);
+  const onApplyFurnitureModelEdit = useCallback((edit) => {
+    const result = applyFurnitureModelEdit({ model: furnitureModel.model, config: wardrobeConfig, edit, context: furnitureEditContext });
+    if (result.ok) setWardrobeConfig(result.nextConfig);
+    return result;
+  }, [furnitureEditContext, furnitureModel, wardrobeConfig]);
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
   const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
@@ -371,7 +377,7 @@ export default function App() {
           return updated;
         })} />
         <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
-        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={onSelectFurnitureComponent} showRegions={showFurnitureRegions} onShowRegionsChange={onShowFurnitureRegionsChange} showRegionDimensions={showFurnitureRegionDimensions} onShowRegionDimensionsChange={setShowFurnitureRegionDimensions} regionFilter={furnitureRegionFilter} onRegionFilterChange={setFurnitureRegionFilter} selectedRegionId={selectedFurnitureRegionId} onSelectRegion={onSelectFurnitureRegion} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
+        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={onSelectFurnitureComponent} showRegions={showFurnitureRegions} onShowRegionsChange={onShowFurnitureRegionsChange} showRegionDimensions={showFurnitureRegionDimensions} onShowRegionDimensionsChange={setShowFurnitureRegionDimensions} regionFilter={furnitureRegionFilter} onRegionFilterChange={setFurnitureRegionFilter} selectedRegionId={selectedFurnitureRegionId} onSelectRegion={onSelectFurnitureRegion} editConfig={wardrobeConfig} editContext={furnitureEditContext} onApplyEdit={onApplyFurnitureModelEdit} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
       </>}
     </aside>
     {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} optimizerSettings={optimizerSettings} setOptimizerSettings={setOptimizerSettings} /> : <section className="viewport">
