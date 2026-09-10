@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { applyFurnitureModelEdit, FURNITURE_EDIT_ERROR_CODES, getEditableProperties } from "../src/utils/furnitureModel/index.js";
 import { buildFurnitureModel } from "../src/utils/furnitureModel/index.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
+import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG, TV_STAND_MINIMUM_SECTION_WIDTH_CM } from "../src/utils/tvStandStructure.js";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "../src/utils/drawerFront.js";
 import { createMaterialConfig } from "../src/utils/materialConfig.js";
@@ -22,6 +23,18 @@ function wardrobeFixture(sectionWidthRatios, doorType = "hinged") {
   const model = buildFurnitureModel({ ...input, generatedPieces, structure });
   const context = { widthCm: input.widthCm, heightCm: input.heightCm, depthCm: input.depthCm, thicknessCm, bottomThicknessCm, shelves: input.shelves, drawerDimensions };
   return { config: wardrobeConfig, context, generatedPieces, input, model, structure };
+}
+
+function tvStandFixture(sectionWidthRatios) {
+  const tvStandConfig = { ...DEFAULT_TV_STAND_CONFIG };
+  if (sectionWidthRatios !== undefined) tvStandConfig.sectionWidthRatios = sectionWidthRatios;
+  const input = { furnitureType: "tvStand", widthCm: 180, heightCm: 55, depthCm: 45, drawers: 0, shelves: 0, tvStandConfig, materialConfigs: materials };
+  const thicknessCm = materials.melamine.thicknessMm / 10;
+  const structure = calculateTvStandStructure({ ...input, thicknessCm });
+  const generatedPieces = getCutPieces(input);
+  const model = buildFurnitureModel({ ...input, generatedPieces, structure });
+  const context = { widthCm: input.widthCm, heightCm: input.heightCm, depthCm: input.depthCm, thicknessCm };
+  return { config: tvStandConfig, context, generatedPieces, input, model, structure };
 }
 
 const edit = (componentId, value, property = "widthRatio") => ({ componentId, property, value });
@@ -105,4 +118,129 @@ test("hinged and sliding doors remain generator-driven after ratio edits", () =>
     const doorNames = doorType === "sliding" ? ["Puerta corrediza 1", "Puerta corrediza 2", "Puerta corrediza 3"] : ["Puerta superior Cuerpo 1", "Puerta principal Cuerpo 2", "Puerta principal Cuerpo 3"];
     doorNames.forEach((name) => assert.ok(rebuilt.generatedPieces.some((piece) => piece.name === name)));
   }
+});
+
+test("editable properties expose both semantic TV Stand sections with their own values", () => {
+  const fixture = tvStandFixture([.35, .65]);
+  for (const [number, expected] of [[1, .35], [2, .65]]) {
+    const [property] = getEditableProperties({ model: fixture.model, componentId: `tvStand.section.${number}`, config: fixture.config, context: fixture.context });
+    assert.equal(property.key, "widthRatio");
+    assert.equal(property.label, "Section width");
+    assert.equal(property.unit, "%");
+    assert.equal(property.step, .001);
+    assert.equal(property.value, expected);
+    assert.equal(property.metadata.ratioIndex, number - 1);
+    assert.equal(property.metadata.minimumWidthCm, TV_STAND_MINIMUM_SECTION_WIDTH_CM);
+  }
+  for (const componentId of ["tvStand.top", "tvStand.divider.1", "tvStand.shelf.1", "tvStand.support.1"]) {
+    assert.deepEqual(getEditableProperties({ model: fixture.model, componentId, config: fixture.config, context: fixture.context }), []);
+  }
+});
+
+test("TV Stand section edits use explicit semantic mapping and an exact complement", () => {
+  const fixture = tvStandFixture();
+  const section1 = applyFurnitureModelEdit({ ...fixture, edit: edit("tvStand.section.1", .35) });
+  const section2 = applyFurnitureModelEdit({ ...fixture, edit: edit("tvStand.section.2", .6) });
+  assert.equal(section1.ok, true);
+  assert.deepEqual(section1.nextConfig.sectionWidthRatios, [.35, .65]);
+  assert.equal(sum(section1.nextConfig.sectionWidthRatios), 1);
+  assert.equal(section2.ok, true);
+  assert.deepEqual(section2.nextConfig.sectionWidthRatios, [.4, .6]);
+  assert.equal(sum(section2.nextConfig.sectionWidthRatios), 1);
+});
+
+test("TV Stand constructive limits reject low, high and section 2 violations atomically", () => {
+  const fixture = tvStandFixture();
+  const original = structuredClone(fixture.config);
+  const [section1Property] = getEditableProperties({ model: fixture.model, componentId: "tvStand.section.1", config: fixture.config, context: fixture.context });
+  const [section2Property] = getEditableProperties({ model: fixture.model, componentId: "tvStand.section.2", config: fixture.config, context: fixture.context });
+  for (const [componentId, value] of [
+    ["tvStand.section.1", section1Property.min - .001],
+    ["tvStand.section.1", section1Property.max + .001],
+    ["tvStand.section.2", section2Property.max + .001],
+  ]) {
+    const result = applyFurnitureModelEdit({ ...fixture, edit: edit(componentId, value) });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION);
+    assert.deepEqual(fixture.config, original);
+  }
+});
+
+test("TV Stand invalid component, property and mismatched furniture configs fail cleanly", () => {
+  const tv = tvStandFixture();
+  const wardrobe = wardrobeFixture();
+  assert.equal(applyFurnitureModelEdit({ ...tv, edit: edit("tvStand.top", .35) }).error.code, FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE);
+  assert.equal(applyFurnitureModelEdit({ ...tv, edit: edit("tvStand.section.1", .35, "height") }).error.code, FURNITURE_EDIT_ERROR_CODES.PROPERTY_NOT_EDITABLE);
+  assert.equal(applyFurnitureModelEdit({ ...tv, config: wardrobe.config, edit: edit("tvStand.section.1", .35) }).error.code, FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE);
+  assert.equal(applyFurnitureModelEdit({ ...wardrobe, config: tv.config, edit: edit("wardrobe.body.1", .25) }).error.code, FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE);
+});
+
+test("TV Stand editing is deterministic, immutable and starts legacy config at 50/50", () => {
+  const fixture = tvStandFixture(undefined);
+  const legacy = { dividerEnabled: true };
+  const modelSnapshot = structuredClone(fixture.model);
+  const relationsSnapshot = structuredClone(fixture.model.relations);
+  const diagnosticsSnapshot = structuredClone(fixture.model.diagnostics);
+  const configSnapshot = structuredClone(legacy);
+  const request = { model: fixture.model, config: legacy, context: fixture.context, edit: edit("tvStand.section.1", .35) };
+  const first = applyFurnitureModelEdit(request);
+  const second = applyFurnitureModelEdit(request);
+  assert.deepEqual(first, second);
+  assert.deepEqual(first.nextConfig.sectionWidthRatios, [.35, .65]);
+  assert.deepEqual(fixture.model, modelSnapshot);
+  assert.deepEqual(fixture.model.relations, relationsSnapshot);
+  assert.deepEqual(fixture.model.diagnostics, diagnosticsSnapshot);
+  assert.deepEqual(legacy, configSnapshot);
+});
+
+function rebuildTvStandAfterEdit(fixture, result) {
+  const input = { ...fixture.input, tvStandConfig: result.nextConfig };
+  const structure = calculateTvStandStructure({ ...input, thicknessCm: fixture.context.thicknessCm });
+  const generatedPieces = getCutPieces(input);
+  return { generatedPieces, model: buildFurnitureModel({ ...input, generatedPieces, structure }), structure };
+}
+
+test("TV Stand 35/65 integration rebuilds geometry, pieces, relations and diagnostics", () => {
+  const fixture = tvStandFixture();
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("tvStand.section.1", .35) });
+  const rebuilt = rebuildTvStandAfterEdit(fixture, result);
+  assert.deepEqual(rebuilt.structure.sectionWidthsCm, [61.5, 114]);
+  assert.equal(rebuilt.structure.dividerCenterXCm, -26.25);
+  for (const [number, width] of [[1, 61.5], [2, 114]]) {
+    const section = rebuilt.model.components.find(({ id }) => id === `tvStand.section.${number}`);
+    const shelf = rebuilt.model.components.find(({ id }) => id === `tvStand.shelf.${number}`);
+    const support = rebuilt.model.components.find(({ id }) => id === `tvStand.support.${number}`);
+    assert.equal(section.dimensions.widthCm, width);
+    assert.equal(section.position.xCm, rebuilt.structure.sectionCentersXCm[number - 1]);
+    assert.equal(shelf.dimensions.widthCm, width);
+    assert.equal(shelf.position.xCm, rebuilt.structure.sectionCentersXCm[number - 1]);
+    assert.equal(support.position.xCm, rebuilt.structure.supportCentersXCm[number - 1]);
+    assert.ok(Number.isFinite(support.position.xCm));
+  }
+  assert.equal(rebuilt.model.components.find(({ id }) => id === "tvStand.divider.1").position.xCm, -26.25);
+  assert.deepEqual(rebuilt.model.relations.map(({ id }) => id), fixture.model.relations.map(({ id }) => id));
+  assert.ok(rebuilt.model.relations.some(({ sourceId, type, targetId }) => sourceId === "tvStand.divider.1" && type === "separates" && targetId === "tvStand.section.1"));
+  assert.ok(rebuilt.model.relations.some(({ sourceId, type, targetId }) => sourceId === "tvStand.divider.1" && type === "separates" && targetId === "tvStand.section.2"));
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+  assert.deepEqual(rebuilt.model.regions, []);
+  for (const [name, length] of [["Repisa izquierda", 61.5], ["Repisa derecha", 114]]) assert.equal(rebuilt.generatedPieces.find((piece) => piece.name === name).length, length);
+  for (const name of ["Soporte vertical izquierdo", "Soporte vertical derecho"]) {
+    const piece = rebuilt.generatedPieces.find((candidate) => candidate.name === name);
+    assert.ok(Number.isFinite(piece.length) && Number.isFinite(piece.width));
+  }
+  for (const name of ["Fondo trasero completo", "Travesaño trasero superior", "Travesaño trasero inferior"]) {
+    const before = fixture.generatedPieces.find((piece) => piece.name === name);
+    const after = rebuilt.generatedPieces.find((piece) => piece.name === name);
+    assert.deepEqual([after.length, after.width], [before.length, before.width]);
+  }
+});
+
+test("TV Stand 60/40 retains the existing manufacturable geometry", () => {
+  const fixture = tvStandFixture();
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("tvStand.section.2", .4) });
+  const rebuilt = rebuildTvStandAfterEdit(fixture, result);
+  assert.deepEqual(result.nextConfig.sectionWidthRatios, [.6, .4]);
+  assert.deepEqual(rebuilt.structure.sectionWidthsCm, [105.5, 70]);
+  assert.equal(sum(result.nextConfig.sectionWidthRatios), 1);
 });

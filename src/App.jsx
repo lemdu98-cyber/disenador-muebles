@@ -167,11 +167,13 @@ export default function App() {
     if (!show) { setSelectedFurnitureRegionId(null); setShowFurnitureRegionDimensions(false); }
   }, []);
   const furnitureEditContext = useMemo(() => ({ widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, bottomThicknessCm: hardboardThickness * 100, shelves, drawerDimensions }), [widthCm, heightCm, depthCm, melamineThickness, hardboardThickness, shelves, drawerDimensions]);
+  const furnitureEditConfig = isWardrobe ? wardrobeConfig : isTvStand ? tvStandConfig : null;
   const onApplyFurnitureModelEdit = useCallback((edit) => {
-    const result = applyFurnitureModelEdit({ model: furnitureModel.model, config: wardrobeConfig, edit, context: furnitureEditContext });
-    if (result.ok) setWardrobeConfig(result.nextConfig);
+    const result = applyFurnitureModelEdit({ model: furnitureModel.model, config: furnitureEditConfig, edit, context: furnitureEditContext });
+    if (result.ok && isWardrobe) setWardrobeConfig(result.nextConfig);
+    if (result.ok && isTvStand) setTvStandConfig(result.nextConfig);
     return result;
-  }, [furnitureEditContext, furnitureModel, wardrobeConfig]);
+  }, [furnitureEditConfig, furnitureEditContext, furnitureModel, isTvStand, isWardrobe]);
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
   const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
@@ -377,7 +379,7 @@ export default function App() {
           return updated;
         })} />
         <CutOptimizer {...design} materialConfigs={materialConfigs} optimizerSettings={optimizerSettings} />
-        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={onSelectFurnitureComponent} showRegions={showFurnitureRegions} onShowRegionsChange={onShowFurnitureRegionsChange} showRegionDimensions={showFurnitureRegionDimensions} onShowRegionDimensionsChange={setShowFurnitureRegionDimensions} regionFilter={furnitureRegionFilter} onRegionFilterChange={setFurnitureRegionFilter} selectedRegionId={selectedFurnitureRegionId} onSelectRegion={onSelectFurnitureRegion} editConfig={wardrobeConfig} editContext={furnitureEditContext} onApplyEdit={onApplyFurnitureModelEdit} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
+        {import.meta.env.DEV && (furnitureModel.model ? <FurnitureModelInspector model={furnitureModel.model} generatedPieces={generatedPieces} selectedId={selectedFurnitureComponentId} onSelectComponent={onSelectFurnitureComponent} showRegions={showFurnitureRegions} onShowRegionsChange={onShowFurnitureRegionsChange} showRegionDimensions={showFurnitureRegionDimensions} onShowRegionDimensionsChange={setShowFurnitureRegionDimensions} regionFilter={furnitureRegionFilter} onRegionFilterChange={setFurnitureRegionFilter} selectedRegionId={selectedFurnitureRegionId} onSelectRegion={onSelectFurnitureRegion} editConfig={furnitureEditConfig} editContext={furnitureEditContext} onApplyEdit={onApplyFurnitureModelEdit} /> : <details className="furniture-model-inspector"><summary>FurnitureModel Inspector · Error</summary><p>{furnitureModel.error}</p></details>)}
       </>}
     </aside>
     {activeModule === "production" ? <ProductionPanel design={design} materialConfigs={materialConfigs} setMaterialConfigs={setMaterialConfigs} optimizerSettings={optimizerSettings} setOptimizerSettings={setOptimizerSettings} /> : <section className="viewport">
