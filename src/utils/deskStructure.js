@@ -16,6 +16,10 @@ export const DEFAULT_DESK_CONFIG = {
 const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const nonNegative = (value, fallback = 0) => Math.max(0, numberOr(value, fallback));
 
+export function getDeskMinimumDrawerModuleWidthCm({ thicknessCm, drawerDimensions }) {
+  return numberOr(thicknessCm) * 2 + (drawerDimensions?.totalClearanceCm ?? 0) + 12;
+}
+
 export function getDeskSectionGeometry({ widthCm, thicknessCm, deskConfig = {} }) {
   const side = (deskConfig.drawerModuleSide ?? deskConfig.drawerPosition) === "left" ? "left" : "right";
   const totalOpeningWidthCm = Math.max(0, numberOr(widthCm) - numberOr(thicknessCm) * 3);
@@ -83,7 +87,7 @@ export function calculateDeskStructure({
   const drawerRearEdgeCm = depthCm / 2 - drawerDepthCm;
   const rearCrossbarFrontCm = -depthCm / 2 + thicknessCm;
 
-  const minimumModuleWidthCm = thicknessCm * 2 + (drawerDimensions?.totalClearanceCm ?? 0) + 12;
+  const minimumModuleWidthCm = getDeskMinimumDrawerModuleWidthCm({ thicknessCm, drawerDimensions });
   const errors = [];
   if (!sectionGeometry.ratioValid) errors.push("La proporción del módulo de cajones debe ser mayor que 0 % y menor que 100 %.");
   if (drawerCount < DESK_DRAWER_LIMITS.min || drawerCount > DESK_DRAWER_LIMITS.max) errors.push(`El Escritorio admite entre ${DESK_DRAWER_LIMITS.min} y ${DESK_DRAWER_LIMITS.max} cajones.`);
@@ -107,6 +111,7 @@ export function calculateDeskStructure({
     sectionGeometry,
     drawerCount,
     moduleWidthCm,
+    minimumModuleWidthCm,
     moduleCenterXCm,
     dividerCenterXCm,
     drawerOpeningWidthCm,

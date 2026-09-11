@@ -1,9 +1,11 @@
 import { calculateWardrobeStructure, normalizeWardrobeSectionWidthRatios } from "../wardrobeStructure.js";
 import { calculateTvStandStructure, normalizeTvStandSectionWidthRatios } from "../tvStandStructure.js";
 import { calculateNightstandStructure, normalizeDrawerHeightRatios } from "../nightstandStructure.js";
+import { calculateDeskStructure } from "../deskStructure.js";
 import {
   getEditableProperties,
   getNightstandRatioBounds,
+  resolveDeskEditConfig,
   getWardrobeRatioBounds,
   NIGHTSTAND_DRAWER_RATIO_INDEX,
   resolveNightstandEditRatios,
@@ -109,26 +111,45 @@ function applyTvStandWidthRatio({ model, config, edit, context, property, value 
   return { nextConfig, nextRatios: normalizedRatios, structure, property };
 }
 
+function applyDeskProperty({ model, config, context, property, value }) {
+  const resolved = resolveDeskEditConfig(config, model, context);
+  const configKey = property.key === "moduleSide" ? "drawerModuleSide" : "drawerModuleWidthRatio";
+  const nextConfig = { ...config, ...resolved, [configKey]: value };
+  const structure = calculateDeskStructure({
+    widthCm: context?.widthCm ?? model.dimensions.widthCm,
+    heightCm: context?.heightCm ?? model.dimensions.heightCm,
+    depthCm: context?.depthCm ?? model.dimensions.depthCm,
+    thicknessCm: context?.thicknessCm,
+    bottomThicknessCm: context?.bottomThicknessCm,
+    drawers: context?.drawers ?? model.dimensions.drawers,
+    drawerDimensions: context?.drawerDimensions,
+    deskConfig: nextConfig,
+  });
+  return { nextConfig: structure.config, structure, property };
+}
+
 const EDIT_HANDLERS = Object.freeze({
   wardrobe: { ratioIndexById: WARDROBE_BODY_RATIO_INDEX, role: "body", type: "section", ratioKey: "sectionWidthRatios", apply: applyWardrobeWidthRatio },
   tvStand: { ratioIndexById: TV_STAND_SECTION_RATIO_INDEX, role: "section", type: "section", ratioKey: "sectionWidthRatios", apply: applyTvStandWidthRatio },
   nightstand: { ratioIndexById: NIGHTSTAND_DRAWER_RATIO_INDEX, role: "drawer", type: "drawer", ratioKey: "drawerHeightRatios", apply: applyNightstandHeightRatio },
+  desk: { componentIds: Object.freeze({ "desk.drawerModule": true }), role: "drawer-module", type: "section", apply: applyDeskProperty },
 });
 
 export function applyFurnitureModelEdit({ model, config, edit, context }) {
   const handler = EDIT_HANDLERS[model?.furnitureType];
   if (!handler) return failure(FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE, "This furniture type does not support controlled FurnitureModel edits.");
   if (configBelongsToAnotherFurnitureType(config, model.furnitureType)) return failure(FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE, "The supplied config does not belong to this furniture type.");
-  const ratioIndex = handler.ratioIndexById[edit?.componentId];
+  const editableComponent = handler.componentIds?.[edit?.componentId] ?? handler.ratioIndexById?.[edit?.componentId] !== undefined;
   const component = model.components?.find(({ id }) => id === edit?.componentId);
-  if (ratioIndex === undefined || component?.type !== handler.type || component.role !== handler.role) return failure(FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE, "The selected component is not editable.");
+  if (!editableComponent || component?.type !== handler.type || component.role !== handler.role) return failure(FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE, "The selected component is not editable.");
   const properties = getEditableProperties({ model, componentId: edit.componentId, config, context });
   const property = properties.find(({ key }) => key === edit?.property);
   if (!property) return failure(FURNITURE_EDIT_ERROR_CODES.PROPERTY_NOT_EDITABLE, "The requested property is not editable.");
-  const value = Number(edit.value);
-  if (!Number.isFinite(value)) return failure(FURNITURE_EDIT_ERROR_CODES.INVALID_VALUE, "Enter a finite numeric ratio.");
-  if (value < property.min || value > property.max) return failure(FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION, `${property.label} must stay between ${(property.min * 100).toFixed(1)}% and ${(property.max * 100).toFixed(1)}%.`);
+  const value = property.type === "number" ? Number(edit.value) : edit.value;
+  if (property.type === "number" && !Number.isFinite(value)) return failure(FURNITURE_EDIT_ERROR_CODES.INVALID_VALUE, "Enter a finite numeric ratio.");
+  if (property.type === "select" && !property.options.some((option) => option.value === value)) return failure(FURNITURE_EDIT_ERROR_CODES.INVALID_VALUE, `Choose a valid ${property.label.toLowerCase()}.`);
+  if (property.type === "number" && (value < property.min || value > property.max)) return failure(FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION, `${property.label} must stay between ${(property.min * 100).toFixed(1)}% and ${(property.max * 100).toFixed(1)}%.`);
   const { nextConfig, nextRatios, structure } = handler.apply({ model, config, edit, context, property, value });
   if (!structure.valid) return failure(FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION, structure.error);
-  return { ok: true, nextConfig, appliedEdit: { componentId: edit.componentId, property: property.key, value }, [handler.ratioKey]: [...nextRatios] };
+  return { ok: true, nextConfig, appliedEdit: { componentId: edit.componentId, property: property.key, value }, ...(handler.ratioKey ? { [handler.ratioKey]: [...nextRatios] } : {}) };
 }

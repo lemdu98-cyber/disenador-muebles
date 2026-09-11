@@ -12,6 +12,8 @@ import {
 } from "../tvStandStructure.js";
 import { calculateNightstandStructure, normalizeDrawerHeightRatios } from "../nightstandStructure.js";
 import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM, NIGHTSTAND_DRAWER_LIMITS } from "../drawerLimits.js";
+import { DEFAULT_DESK_CONFIG, DESK_MINIMUM_LEGROOM_WIDTH_CM, getDeskMinimumDrawerModuleWidthCm, getDeskSectionGeometry } from "../deskStructure.js";
+import { snapCutDimension } from "../manufacturingGrid.js";
 
 export const WARDROBE_BODY_RATIO_INDEX = Object.freeze({
   "wardrobe.body.1": 0,
@@ -94,6 +96,34 @@ export function getNightstandRatioBounds({ model, config, context }) {
   }));
 }
 
+export function resolveDeskEditConfig(config, model, context) {
+  const geometry = getDeskSectionGeometry({
+    widthCm: context?.widthCm ?? model?.dimensions?.widthCm,
+    thicknessCm: context?.thicknessCm,
+    deskConfig: config ?? DEFAULT_DESK_CONFIG,
+  });
+  return {
+    drawerModuleSide: geometry.drawerModuleSide,
+    drawerModuleWidthRatio: geometry.drawerModuleWidthRatio,
+  };
+}
+
+export function getDeskModuleWidthRatioBounds({ model, context }) {
+  const widthCm = Number(context?.widthCm ?? model?.dimensions?.widthCm);
+  const thicknessCm = Number(context?.thicknessCm);
+  const geometry = getDeskSectionGeometry({ widthCm, thicknessCm, deskConfig: DEFAULT_DESK_CONFIG });
+  const minimumModuleWidthCm = getDeskMinimumDrawerModuleWidthCm({ thicknessCm, drawerDimensions: context?.drawerDimensions });
+  const minimumOpeningWidthCm = snapCutDimension(minimumModuleWidthCm - thicknessCm * 2, "ceil");
+  return {
+    min: minimumOpeningWidthCm / geometry.totalOpeningWidthCm,
+    max: 1 - DESK_MINIMUM_LEGROOM_WIDTH_CM / geometry.totalOpeningWidthCm,
+    minimumModuleWidthCm,
+    minimumLegRoomCm: DESK_MINIMUM_LEGROOM_WIDTH_CM,
+    minimumMeasurementCm: minimumModuleWidthCm,
+    minimumMeasurementLabel: "module",
+  };
+}
+
 const EDITABLE_DEFINITIONS = Object.freeze({
   wardrobe: {
     ratioIndexById: WARDROBE_BODY_RATIO_INDEX,
@@ -120,12 +150,44 @@ const EDITABLE_DEFINITIONS = Object.freeze({
     propertyKey: "heightRatio",
     propertyLabel: "Drawer height",
   },
+  desk: {
+    componentId: "desk.drawerModule",
+    componentRole: "drawer-module",
+    properties: ({ model, config, context }) => {
+      const resolved = resolveDeskEditConfig(config, model, context);
+      const bounds = getDeskModuleWidthRatioBounds({ model, context });
+      return [{
+        key: "moduleSide",
+        label: "Drawer module side",
+        type: "select",
+        value: resolved.drawerModuleSide,
+        options: [
+          { value: "left", label: "Left" },
+          { value: "right", label: "Right" },
+        ],
+      }, {
+        key: "moduleWidthRatio",
+        label: "Drawer module width",
+        type: "number",
+        unit: "%",
+        min: bounds.min,
+        max: bounds.max,
+        step: .001,
+        value: resolved.drawerModuleWidthRatio,
+        metadata: bounds,
+      }];
+    },
+  },
 });
 
 export function getEditableProperties({ model, componentId, config, context }) {
   const definition = EDITABLE_DEFINITIONS[model?.furnitureType];
   if (!definition) return [];
   const component = model.components?.find(({ id }) => id === componentId);
+  if (definition.properties) {
+    if (component?.id !== definition.componentId || component?.type !== (definition.componentType ?? "section") || component.role !== definition.componentRole) return [];
+    return definition.properties({ model, config, context });
+  }
   const ratioIndex = definition.ratioIndexById[component?.id];
   const drawerCount = getDrawerCount(model, context);
   if (component?.type !== (definition.componentType ?? "section") || component.role !== definition.componentRole || ratioIndex === undefined) return [];

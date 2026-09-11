@@ -5,6 +5,7 @@ import { buildFurnitureModel } from "../src/utils/furnitureModel/index.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG, TV_STAND_MINIMUM_SECTION_WIDTH_CM } from "../src/utils/tvStandStructure.js";
 import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE, equalDrawerHeightRatios } from "../src/utils/nightstandStructure.js";
+import { calculateDeskStructure, DEFAULT_DESK_CONFIG, DEFAULT_DESK_DRAWER_MODULE_RATIO, DESK_MINIMUM_LEGROOM_WIDTH_CM, getDeskSectionGeometry } from "../src/utils/deskStructure.js";
 import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "../src/utils/drawerLimits.js";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "../src/utils/drawerFront.js";
@@ -51,6 +52,19 @@ function nightstandFixture({ drawerHeightRatios, drawers = 2, heightCm = 55 } = 
   const model = buildFurnitureModel({ ...input, generatedPieces, structure });
   const context = { widthCm: input.widthCm, heightCm: input.heightCm, depthCm: input.depthCm, thicknessCm, bottomThicknessCm, drawers, drawerDimensions, drawerFrontConfig: input.drawerFrontConfig };
   return { config: nightstandStructureConfig, context, generatedPieces, input, model, structure };
+}
+
+function deskFixture({ side = "right", ratio = DEFAULT_DESK_DRAWER_MODULE_RATIO } = {}) {
+  const deskConfig = { ...DEFAULT_DESK_CONFIG, drawerModuleSide: side, drawerModuleWidthRatio: ratio };
+  const input = { furnitureType: "desk", widthCm: 140, heightCm: 75, depthCm: 60, drawers: 3, shelves: 0, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, deskConfig, materialConfigs: materials };
+  const thicknessCm = materials.melamine.thicknessMm / 10;
+  const bottomThicknessCm = materials.hardboard.thicknessMm / 10;
+  const drawerDimensions = calculateDrawerSlideDimensions({ ...input, thicknessCm });
+  const structure = calculateDeskStructure({ ...input, thicknessCm, bottomThicknessCm, drawerDimensions });
+  const generatedPieces = getCutPieces(input);
+  const model = buildFurnitureModel({ ...input, generatedPieces, structure });
+  const context = { widthCm: input.widthCm, heightCm: input.heightCm, depthCm: input.depthCm, thicknessCm, bottomThicknessCm, drawers: input.drawers, drawerDimensions };
+  return { config: deskConfig, context, generatedPieces, input, model, structure };
 }
 
 const edit = (componentId, value, property = "widthRatio") => ({ componentId, property, value });
@@ -414,4 +428,156 @@ test("Nightstand 35/65 and 60/40 keep the established manufacturable heights", (
     assert.deepEqual(rebuilt.structure.drawerFrontHeightsCm, heights);
     assert.deepEqual(rebuilt.model.diagnostics, []);
   }
+});
+
+function rebuildDeskAfterEdit(fixture, result) {
+  const input = { ...fixture.input, deskConfig: result.nextConfig };
+  const drawerDimensions = calculateDrawerSlideDimensions({ ...input, thicknessCm: fixture.context.thicknessCm });
+  const structure = calculateDeskStructure({ ...input, thicknessCm: fixture.context.thicknessCm, bottomThicknessCm: fixture.context.bottomThicknessCm, drawerDimensions });
+  const generatedPieces = getCutPieces(input);
+  return { drawerDimensions, generatedPieces, model: buildFurnitureModel({ ...input, generatedPieces, structure }), structure };
+}
+
+test("editable properties expose side and width only on the semantic Desk drawer module", () => {
+  const fixture = deskFixture();
+  const properties = getEditableProperties({ model: fixture.model, componentId: "desk.drawerModule", config: fixture.config, context: fixture.context });
+  assert.deepEqual(properties.map(({ key, type }) => [key, type]), [["moduleSide", "select"], ["moduleWidthRatio", "number"]]);
+  assert.deepEqual(properties[0].options, [{ value: "left", label: "Left" }, { value: "right", label: "Right" }]);
+  assert.equal(properties[0].value, "right");
+  assert.equal(properties[1].value, DEFAULT_DESK_DRAWER_MODULE_RATIO);
+  assert.equal(properties[1].unit, "%");
+  assert.equal(properties[1].step, .001);
+  assert.equal(properties[1].metadata.minimumLegRoomCm, DESK_MINIMUM_LEGROOM_WIDTH_CM);
+  assert.equal(properties[1].metadata.minimumModuleWidthCm, fixture.structure.minimumModuleWidthCm);
+  for (const id of ["desk.legOpening", "desk.divider", "desk.drawer.1", "desk.drawer.1.front", "desk.top", "desk.leftSide", "desk.rightSide", "desk.rearCrossbar"]) {
+    assert.deepEqual(getEditableProperties({ model: fixture.model, componentId: id, config: fixture.config, context: fixture.context }), []);
+  }
+});
+
+test("Desk module side edits work in both directions without changing dimensions", () => {
+  for (const [from, to] of [["right", "left"], ["left", "right"]]) {
+    const fixture = deskFixture({ side: from, ratio: .35 });
+    const result = applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", to, "moduleSide") });
+    assert.equal(result.ok, true);
+    assert.equal(result.nextConfig.drawerModuleSide, to);
+    assert.equal(result.nextConfig.drawerModuleWidthRatio, .35);
+    const rebuilt = rebuildDeskAfterEdit(fixture, result);
+    assert.equal(rebuilt.structure.moduleCenterXCm, -fixture.structure.moduleCenterXCm);
+    assert.equal(rebuilt.structure.dividerCenterXCm, -fixture.structure.dividerCenterXCm);
+    assert.equal(rebuilt.structure.sectionGeometry.freeOpeningCenterXCm, -fixture.structure.sectionGeometry.freeOpeningCenterXCm);
+    assert.deepEqual([rebuilt.structure.moduleWidthCm, rebuilt.structure.drawerOpeningWidthCm, rebuilt.structure.legroomWidthCm], [fixture.structure.moduleWidthCm, fixture.structure.drawerOpeningWidthCm, fixture.structure.legroomWidthCm]);
+    assert.deepEqual(rebuilt.generatedPieces.map(({ name, length, width }) => [name, length, width]), fixture.generatedPieces.map(({ name, length, width }) => [name, length, width]));
+  }
+});
+
+test("Desk side integration mirrors components and regions while preserving semantic identities", () => {
+  const fixture = deskFixture({ side: "right", ratio: .35 });
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", "left", "moduleSide") });
+  const rebuilt = rebuildDeskAfterEdit(fixture, result);
+  for (const id of ["desk.drawerModule", "desk.legOpening", "desk.divider", "desk.drawer.1", "desk.drawer.2", "desk.drawer.3", "desk.drawer.1.front"]) {
+    const before = fixture.model.components.find((component) => component.id === id);
+    const after = rebuilt.model.components.find((component) => component.id === id);
+    assert.equal(after.position.xCm, -before.position.xCm);
+  }
+  assert.deepEqual(rebuilt.model.components.map(({ id }) => id), fixture.model.components.map(({ id }) => id));
+  assert.deepEqual(rebuilt.model.relations.map(({ id }) => id), fixture.model.relations.map(({ id }) => id));
+  assert.deepEqual(rebuilt.model.regions.map(({ id }) => id), fixture.model.regions.map(({ id }) => id));
+  fixture.model.regions.forEach((before, index) => {
+    const after = rebuilt.model.regions[index];
+    assert.equal(after.region.minX, -before.region.maxX);
+    assert.equal(after.region.maxX, -before.region.minX);
+  });
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+});
+
+test("Desk width edit uses the current section geometry for 35 and 30 percent", () => {
+  const fixture = deskFixture();
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") });
+  const rebuilt = rebuildDeskAfterEdit(fixture, result);
+  const expected = getDeskSectionGeometry({ widthCm: 140, thicknessCm: 1.5, deskConfig: { ...fixture.config, drawerModuleWidthRatio: .35 } });
+  assert.equal(result.ok, true);
+  assert.equal(result.nextConfig.drawerModuleSide, "right");
+  assert.equal(result.nextConfig.drawerModuleWidthRatio, .35);
+  assert.deepEqual({ module: rebuilt.structure.moduleWidthCm, opening: rebuilt.structure.drawerOpeningWidthCm, legs: rebuilt.structure.legroomWidthCm, divider: rebuilt.structure.dividerCenterXCm }, { module: expected.moduleWidthCm, opening: expected.drawerOpeningWidthCm, legs: expected.legroomWidthCm, divider: expected.dividerCenterXCm });
+  const thirty = getDeskSectionGeometry({ widthCm: 140, thicknessCm: 1.5, deskConfig: { ...fixture.config, drawerModuleWidthRatio: .3 } });
+  assert.deepEqual({ module: thirty.moduleWidthCm, opening: thirty.drawerOpeningWidthCm, legs: thirty.legroomWidthCm }, { module: 43.5, opening: 40.5, legs: 95 });
+});
+
+test("Desk width edits on the left mirror right geometry without duplicated rules", () => {
+  const right = deskFixture({ side: "right" });
+  const left = deskFixture({ side: "left" });
+  const rightResult = rebuildDeskAfterEdit(right, applyFurnitureModelEdit({ ...right, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") }));
+  const leftResult = rebuildDeskAfterEdit(left, applyFurnitureModelEdit({ ...left, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") }));
+  assert.deepEqual([leftResult.structure.moduleWidthCm, leftResult.structure.drawerOpeningWidthCm, leftResult.structure.legroomWidthCm], [rightResult.structure.moduleWidthCm, rightResult.structure.drawerOpeningWidthCm, rightResult.structure.legroomWidthCm]);
+  assert.equal(leftResult.structure.moduleCenterXCm, -rightResult.structure.moduleCenterXCm);
+  assert.equal(leftResult.structure.dividerCenterXCm, -rightResult.structure.dividerCenterXCm);
+  assert.equal(leftResult.structure.sectionGeometry.freeOpeningCenterXCm, -rightResult.structure.sectionGeometry.freeOpeningCenterXCm);
+});
+
+test("Desk constructive width limits reject low and high values atomically", () => {
+  const fixture = deskFixture();
+  const original = structuredClone(fixture.config);
+  const width = getEditableProperties({ model: fixture.model, componentId: "desk.drawerModule", config: fixture.config, context: fixture.context }).find(({ key }) => key === "moduleWidthRatio");
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", width.min, "moduleWidthRatio") }).ok, true);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", width.max, "moduleWidthRatio") }).ok, true);
+  for (const value of [width.min - .001, width.max + .001]) {
+    const result = applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", value, "moduleWidthRatio") });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION);
+    assert.deepEqual(fixture.config, original);
+  }
+});
+
+test("Desk invalid side, component, property and foreign configs fail cleanly", () => {
+  const fixture = deskFixture();
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", "center", "moduleSide") }).error.code, FURNITURE_EDIT_ERROR_CODES.INVALID_VALUE);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("desk.top", .35, "moduleWidthRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", .35, "heightRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.PROPERTY_NOT_EDITABLE);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, config: wardrobeFixture().config, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, model: nightstandFixture().model, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE);
+});
+
+test("Desk editing is deterministic, immutable and normalizes legacy side and ratio", () => {
+  const fixture = deskFixture();
+  const legacy = { drawerFrontGapCm: .3, rearCrossbarHeightCm: 10, moduleBraceHeightCm: 6 };
+  const snapshots = { config: structuredClone(legacy), model: structuredClone(fixture.model), components: structuredClone(fixture.model.components), regions: structuredClone(fixture.model.regions), relations: structuredClone(fixture.model.relations), diagnostics: structuredClone(fixture.model.diagnostics) };
+  const request = { model: fixture.model, config: legacy, context: fixture.context, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") };
+  const first = applyFurnitureModelEdit(request);
+  const second = applyFurnitureModelEdit(request);
+  assert.deepEqual(first, second);
+  assert.equal(first.ok, true);
+  assert.equal(first.nextConfig.drawerModuleSide, "right");
+  assert.equal(first.nextConfig.drawerModuleWidthRatio, .35);
+  assert.deepEqual(legacy, snapshots.config);
+  assert.deepEqual(fixture.model, snapshots.model);
+  assert.deepEqual(fixture.model.components, snapshots.components);
+  assert.deepEqual(fixture.model.regions, snapshots.regions);
+  assert.deepEqual(fixture.model.relations, snapshots.relations);
+  assert.deepEqual(fixture.model.diagnostics, snapshots.diagnostics);
+});
+
+test("Desk 35 percent integration rebuilds manufacturing pieces, regions and diagnostics", () => {
+  const fixture = deskFixture();
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("desk.drawerModule", .35, "moduleWidthRatio") });
+  const rebuilt = rebuildDeskAfterEdit(fixture, result);
+  assert.deepEqual({ module: rebuilt.structure.moduleWidthCm, opening: rebuilt.structure.drawerOpeningWidthCm, legs: rebuilt.structure.legroomWidthCm, divider: rebuilt.structure.dividerCenterXCm }, { module: 50.5, opening: 47.5, legs: 88, divider: 20.25 });
+  assert.equal(rebuilt.model.components.find(({ id }) => id === "desk.drawerModule").dimensions.widthCm, 50.5);
+  assert.equal(rebuilt.model.components.find(({ id }) => id === "desk.legOpening").dimensions.widthCm, 88);
+  for (let number = 1; number <= 3; number += 1) {
+    const drawer = rebuilt.model.components.find(({ id }) => id === `desk.drawer.${number}`);
+    const front = rebuilt.model.components.find(({ id }) => id === `desk.drawer.${number}.front`);
+    assert.equal(drawer.dimensions.widthCm, 47.5);
+    assert.equal(front.position.xCm, rebuilt.structure.moduleCenterXCm);
+    assert.ok(rebuilt.model.relations.some(({ sourceId, type, targetId }) => sourceId === drawer.id && type === "contained-in" && targetId === "desk.drawerModule"));
+  }
+  assert.equal(rebuilt.model.regions.length, 6);
+  rebuilt.model.regions.forEach((region) => assert.equal(region.region.maxX - region.region.minX, region.role === "front-opening" ? 47.5 : 50.5));
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+  assert.equal(rebuilt.generatedPieces.find(({ name }) => name === "Frente cajón superior").length, 50.5);
+  assert.equal(rebuilt.generatedPieces.find(({ name }) => name === "Parte trasera de cajón").length, 42);
+  assert.equal(rebuilt.generatedPieces.find(({ name }) => name === "Base de cartón prensado del cajón").length, 45);
+  const optimized = optimizeAllMaterials(rebuilt.generatedPieces, materials);
+  assert.equal(optimized.melamine.unplaced.length + optimized.hardboard.unplaced.length, 0);
 });
