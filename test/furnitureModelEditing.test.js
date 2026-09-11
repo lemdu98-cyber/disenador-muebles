@@ -1,13 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyFurnitureModelEdit, FURNITURE_EDIT_ERROR_CODES, getEditableProperties } from "../src/utils/furnitureModel/index.js";
+import { applyFurnitureModelEdit, FURNITURE_EDIT_ERROR_CODES, getEditableProperties, getRegionHeight } from "../src/utils/furnitureModel/index.js";
 import { buildFurnitureModel } from "../src/utils/furnitureModel/index.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG, TV_STAND_MINIMUM_SECTION_WIDTH_CM } from "../src/utils/tvStandStructure.js";
+import { calculateNightstandStructure, DEFAULT_NIGHTSTAND_STRUCTURE, equalDrawerHeightRatios } from "../src/utils/nightstandStructure.js";
+import { MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM } from "../src/utils/drawerLimits.js";
 import { calculateDrawerSlideDimensions, DEFAULT_DRAWER_SLIDE_CONFIG } from "../src/utils/drawerSlides.js";
 import { DEFAULT_DRAWER_FRONT_CONFIG } from "../src/utils/drawerFront.js";
 import { createMaterialConfig } from "../src/utils/materialConfig.js";
 import { getCutPieces } from "../src/utils/cutPieces.js";
+import { optimizeAllMaterials } from "../src/utils/materialOptimizer.js";
 
 const materials = createMaterialConfig();
 
@@ -35,6 +38,19 @@ function tvStandFixture(sectionWidthRatios) {
   const model = buildFurnitureModel({ ...input, generatedPieces, structure });
   const context = { widthCm: input.widthCm, heightCm: input.heightCm, depthCm: input.depthCm, thicknessCm };
   return { config: tvStandConfig, context, generatedPieces, input, model, structure };
+}
+
+function nightstandFixture({ drawerHeightRatios, drawers = 2, heightCm = 55 } = {}) {
+  const nightstandStructureConfig = { ...DEFAULT_NIGHTSTAND_STRUCTURE, drawerHeightRatios: drawerHeightRatios ?? equalDrawerHeightRatios(drawers) };
+  const input = { furnitureType: "nightstand", widthCm: 50, heightCm, depthCm: 40, drawers, shelves: 0, drawerSlideConfig: DEFAULT_DRAWER_SLIDE_CONFIG, drawerFrontConfig: DEFAULT_DRAWER_FRONT_CONFIG, nightstandStructureConfig, materialConfigs: materials };
+  const thicknessCm = materials.melamine.thicknessMm / 10;
+  const bottomThicknessCm = materials.hardboard.thicknessMm / 10;
+  const drawerDimensions = calculateDrawerSlideDimensions({ ...input, thicknessCm });
+  const structure = calculateNightstandStructure({ ...input, thicknessCm, structureConfig: nightstandStructureConfig });
+  const generatedPieces = getCutPieces(input);
+  const model = buildFurnitureModel({ ...input, generatedPieces, structure });
+  const context = { widthCm: input.widthCm, heightCm: input.heightCm, depthCm: input.depthCm, thicknessCm, bottomThicknessCm, drawers, drawerDimensions, drawerFrontConfig: input.drawerFrontConfig };
+  return { config: nightstandStructureConfig, context, generatedPieces, input, model, structure };
 }
 
 const edit = (componentId, value, property = "widthRatio") => ({ componentId, property, value });
@@ -243,4 +259,159 @@ test("TV Stand 60/40 retains the existing manufacturable geometry", () => {
   assert.deepEqual(result.nextConfig.sectionWidthRatios, [.6, .4]);
   assert.deepEqual(rebuilt.structure.sectionWidthsCm, [105.5, 70]);
   assert.equal(sum(result.nextConfig.sectionWidthRatios), 1);
+});
+
+test("editable properties expose heightRatio only on actual semantic Nightstand drawers", () => {
+  for (const drawers of [2, 3, 4]) {
+    const fixture = nightstandFixture({ drawers, heightCm: drawers === 4 ? 70 : 55 });
+    for (let number = 1; number <= drawers; number += 1) {
+      const [property] = getEditableProperties({ model: fixture.model, componentId: `nightstand.drawer.${number}`, config: fixture.config, context: fixture.context });
+      assert.equal(property.key, "heightRatio");
+      assert.equal(property.label, "Drawer height");
+      assert.equal(property.unit, "%");
+      assert.equal(property.step, .001);
+      assert.equal(property.metadata.ratioIndex, number - 1);
+      assert.equal(property.metadata.drawerCount, drawers);
+      assert.equal(property.metadata.minimumHeightCm, MINIMUM_PRACTICAL_DRAWER_HEIGHT_CM);
+    }
+    assert.deepEqual(getEditableProperties({ model: fixture.model, componentId: `nightstand.drawer.${drawers}.front`, config: fixture.config, context: fixture.context }), []);
+  }
+  const fixture = nightstandFixture();
+  assert.deepEqual(getEditableProperties({ model: fixture.model, componentId: "nightstand.drawer.4", config: fixture.config, context: fixture.context }), []);
+  assert.deepEqual(getEditableProperties({ model: fixture.model, componentId: "nightstand.top", config: fixture.config, context: fixture.context }), []);
+});
+
+test("two-drawer edits map drawer 1 and drawer 2 to the correct ratios", () => {
+  const fixture = nightstandFixture();
+  const fortySixty = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", .4, "heightRatio") });
+  const thirtyFiveSixtyFive = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.2", .65, "heightRatio") });
+  const sixtyForty = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", .6, "heightRatio") });
+  assert.deepEqual(fortySixty.nextConfig.drawerHeightRatios, [.4, .6]);
+  assert.deepEqual(thirtyFiveSixtyFive.nextConfig.drawerHeightRatios, [.35, .65]);
+  assert.deepEqual(sixtyForty.nextConfig.drawerHeightRatios, [.6, .4]);
+  for (const result of [fortySixty, thirtyFiveSixtyFive, sixtyForty]) assert.equal(sum(result.nextConfig.drawerHeightRatios), 1);
+});
+
+test("three drawers redistribute the remainder proportionally while respecting minima", () => {
+  const fixture = nightstandFixture({ drawers: 3, drawerHeightRatios: [.25, .35, .4] });
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.2", .4, "heightRatio") });
+  assert.equal(result.ok, true);
+  const expected = [10 / 42, .4, 1 - 10 / 42 - .4];
+  expected.forEach((ratio, index) => assert.ok(Math.abs(result.nextConfig.drawerHeightRatios[index] - ratio) < 1e-12));
+  assert.equal(sum(result.nextConfig.drawerHeightRatios), 1);
+  const rebuilt = rebuildNightstandAfterEdit(fixture, result);
+  assert.deepEqual(rebuilt.structure.drawerFrontHeightsCm, [10, 17, 15]);
+  assert.equal(rebuilt.structure.valid, true);
+});
+
+test("four drawers support a valid edit and reject ratios that consume another minimum", () => {
+  const fixture = nightstandFixture({ drawers: 4, heightCm: 70 });
+  const valid = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", .3, "heightRatio") });
+  assert.equal(valid.ok, true);
+  [.3, .7 / 3, .7 / 3, .7 / 3].forEach((ratio, index) => assert.ok(Math.abs(valid.nextConfig.drawerHeightRatios[index] - ratio) < 1e-12));
+  assert.equal(sum(valid.nextConfig.drawerHeightRatios), 1);
+  assert.equal(rebuildNightstandAfterEdit(fixture, valid).structure.valid, true);
+  const [property] = getEditableProperties({ model: fixture.model, componentId: "nightstand.drawer.1", config: fixture.config, context: fixture.context });
+  const invalid = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", property.max + .001, "heightRatio") });
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.error.code, FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION);
+});
+
+test("Nightstand bounds reject low and high edits atomically", () => {
+  const fixture = nightstandFixture();
+  const original = structuredClone(fixture.config);
+  const [property] = getEditableProperties({ model: fixture.model, componentId: "nightstand.drawer.1", config: fixture.config, context: fixture.context });
+  for (const value of [property.min - .001, property.max + .001]) {
+    const result = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", value, "heightRatio") });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION);
+    assert.deepEqual(fixture.config, original);
+  }
+});
+
+test("Nightstand invalid targets, values and foreign configs use controlled errors", () => {
+  const fixture = nightstandFixture();
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.top", .4, "heightRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.4", .25, "heightRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE);
+  assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", .4, "widthRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.PROPERTY_NOT_EDITABLE);
+  for (const value of [Number.NaN, Number.POSITIVE_INFINITY, "not-a-number"]) assert.equal(applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", value, "heightRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.INVALID_VALUE);
+  for (const config of [wardrobeFixture().config, tvStandFixture().config, { drawerModuleSide: "right", drawerModuleWidthRatio: .35 }]) {
+    assert.equal(applyFurnitureModelEdit({ ...fixture, config, edit: edit("nightstand.drawer.1", .4, "heightRatio") }).error.code, FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE);
+  }
+});
+
+test("Nightstand editing is deterministic, immutable and normalizes legacy config by drawer count", () => {
+  for (const drawers of [2, 3, 4]) {
+    const fixture = nightstandFixture({ drawers, heightCm: drawers === 4 ? 70 : 55 });
+    const legacy = { rearEnabled: true };
+    const snapshots = { config: structuredClone(legacy), model: structuredClone(fixture.model), components: structuredClone(fixture.model.components), relations: structuredClone(fixture.model.relations), regions: structuredClone(fixture.model.regions), diagnostics: structuredClone(fixture.model.diagnostics) };
+    const value = drawers === 4 ? .3 : drawers === 3 ? .3 : .4;
+    const request = { model: fixture.model, config: legacy, context: fixture.context, edit: edit("nightstand.drawer.1", value, "heightRatio") };
+    const first = applyFurnitureModelEdit(request);
+    const second = applyFurnitureModelEdit(request);
+    assert.deepEqual(first, second);
+    assert.equal(first.ok, true);
+    assert.equal(first.nextConfig.drawerHeightRatios.length, drawers);
+    assert.equal(sum(first.nextConfig.drawerHeightRatios), 1);
+    assert.deepEqual(legacy, snapshots.config);
+    assert.deepEqual(fixture.model, snapshots.model);
+    assert.deepEqual(fixture.model.components, snapshots.components);
+    assert.deepEqual(fixture.model.relations, snapshots.relations);
+    assert.deepEqual(fixture.model.regions, snapshots.regions);
+    assert.deepEqual(fixture.model.diagnostics, snapshots.diagnostics);
+  }
+});
+
+function rebuildNightstandAfterEdit(fixture, result) {
+  const input = { ...fixture.input, nightstandStructureConfig: result.nextConfig };
+  const structure = calculateNightstandStructure({ ...input, thicknessCm: fixture.context.thicknessCm, structureConfig: result.nextConfig });
+  const generatedPieces = getCutPieces(input);
+  return { generatedPieces, model: buildFurnitureModel({ ...input, generatedPieces, structure }), structure };
+}
+
+test("Nightstand 40/60 integration rebuilds fronts, boxes, regions and manufacturing flow", () => {
+  const fixture = nightstandFixture();
+  const result = applyFurnitureModelEdit({ ...fixture, edit: edit("nightstand.drawer.1", .4, "heightRatio") });
+  const rebuilt = rebuildNightstandAfterEdit(fixture, result);
+  assert.deepEqual(rebuilt.structure.config.drawerHeightRatios, [.4, .6]);
+  assert.deepEqual(rebuilt.structure.drawerFrontHeightsCm, [17.5, 26.5]);
+  assert.deepEqual(rebuilt.structure.drawerBoxHeightsCm, [17.8, 26.8]);
+  assert.deepEqual(rebuilt.structure.drawerSideHeightsCm, [16, 25]);
+  for (let index = 0; index < 2; index += 1) {
+    const number = index + 1;
+    const front = rebuilt.model.components.find(({ id }) => id === `nightstand.drawer.${number}.front`);
+    const side = rebuilt.model.components.find(({ id }) => id === `nightstand.drawer.${number}.left-side`);
+    const back = rebuilt.model.components.find(({ id }) => id === `nightstand.drawer.${number}.back`);
+    assert.equal(front.dimensions.depthCm, rebuilt.structure.drawerFrontHeightsCm[index]);
+    assert.equal(front.position.yCm, rebuilt.structure.drawerGeometry.drawerLayouts[index].frontCenterYCm);
+    assert.equal(side.dimensions.depthCm, rebuilt.structure.drawerSideHeightsCm[index]);
+    assert.equal(back.dimensions.depthCm, rebuilt.structure.drawerSideHeightsCm[index]);
+  }
+  assert.equal(rebuilt.model.regions.length, 4);
+  assert.deepEqual(rebuilt.model.regions.filter(({ role }) => role === "drawer-front-region").map(getRegionHeight), [17.5, 26.5]);
+  assert.deepEqual(rebuilt.model.regions.filter(({ role }) => role === "front-opening").map(getRegionHeight), [17.5, 26.5]);
+  assert.deepEqual(rebuilt.model.relations.map(({ id }) => id), fixture.model.relations.map(({ id }) => id));
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+  assert.deepEqual(rebuilt.generatedPieces.filter(({ name }) => name === "Frente de cajón").map(({ width }) => width), [17.5, 26.5]);
+  assert.deepEqual(rebuilt.generatedPieces.filter(({ name }) => name === "Lateral izquierdo de cajón").map(({ width }) => width), [16, 25]);
+  assert.deepEqual(rebuilt.generatedPieces.filter(({ name }) => name === "Parte trasera de cajón").map(({ width }) => width), [16, 25]);
+  assert.deepEqual(rebuilt.generatedPieces.filter(({ name }) => name === "Base de cartón prensado del cajón").map(({ length, width, material }) => [length, width, material.id]), fixture.generatedPieces.filter(({ name }) => name === "Base de cartón prensado del cajón").map(({ length, width, material }) => [length, width, material.id]));
+  const optimized = optimizeAllMaterials(rebuilt.generatedPieces, materials);
+  assert.equal(optimized.melamine.unplaced.length + optimized.hardboard.unplaced.length, 0);
+});
+
+test("Nightstand 35/65 and 60/40 keep the established manufacturable heights", () => {
+  const fixture = nightstandFixture();
+  const cases = [
+    ["nightstand.drawer.2", .65, [.35, .65], [15.5, 28.5]],
+    ["nightstand.drawer.1", .6, [.6, .4], [26.5, 17.5]],
+  ];
+  for (const [componentId, value, ratios, heights] of cases) {
+    const result = applyFurnitureModelEdit({ ...fixture, edit: edit(componentId, value, "heightRatio") });
+    const rebuilt = rebuildNightstandAfterEdit(fixture, result);
+    assert.deepEqual(result.nextConfig.drawerHeightRatios, ratios);
+    assert.deepEqual(rebuilt.structure.drawerFrontHeightsCm, heights);
+    assert.deepEqual(rebuilt.model.diagnostics, []);
+  }
 });

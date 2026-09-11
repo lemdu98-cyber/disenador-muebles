@@ -166,14 +166,15 @@ export default function App() {
     setShowFurnitureRegions(show);
     if (!show) { setSelectedFurnitureRegionId(null); setShowFurnitureRegionDimensions(false); }
   }, []);
-  const furnitureEditContext = useMemo(() => ({ widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, bottomThicknessCm: hardboardThickness * 100, shelves, drawerDimensions }), [widthCm, heightCm, depthCm, melamineThickness, hardboardThickness, shelves, drawerDimensions]);
-  const furnitureEditConfig = isWardrobe ? wardrobeConfig : isTvStand ? tvStandConfig : null;
+  const furnitureEditContext = useMemo(() => ({ widthCm, heightCm, depthCm, thicknessCm: melamineThickness * 100, bottomThicknessCm: hardboardThickness * 100, drawers, shelves, drawerDimensions, drawerFrontConfig }), [widthCm, heightCm, depthCm, melamineThickness, hardboardThickness, drawers, shelves, drawerDimensions, drawerFrontConfig]);
+  const furnitureEditConfig = isWardrobe ? wardrobeConfig : isTvStand ? tvStandConfig : isNightstand ? nightstandStructureConfig : null;
   const onApplyFurnitureModelEdit = useCallback((edit) => {
     const result = applyFurnitureModelEdit({ model: furnitureModel.model, config: furnitureEditConfig, edit, context: furnitureEditContext });
     if (result.ok && isWardrobe) setWardrobeConfig(result.nextConfig);
     if (result.ok && isTvStand) setTvStandConfig(result.nextConfig);
+    if (result.ok && isNightstand) setNightstandStructureConfig(result.nextConfig);
     return result;
-  }, [furnitureEditConfig, furnitureEditContext, furnitureModel, isTvStand, isWardrobe]);
+  }, [furnitureEditConfig, furnitureEditContext, furnitureModel, isNightstand, isTvStand, isWardrobe]);
   const pieceValidation = validateAllFurniturePieces(generatedPieces, materialConfigs, optimizerSettings);
   const designValidationError = geometryValidationError || pieceValidation.error;
   const design = { ...designInputs, wardrobeMainDoorHeightsCm: wardrobeStructure.mainDoorHeightsCm, drawerValidationError, structureValidationError, deskValidationError, tvStandValidationError, wardrobeValidationError, pieceValidation, optimizerSettings, designValidationError };
