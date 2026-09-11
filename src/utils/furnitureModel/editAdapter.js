@@ -20,6 +20,7 @@ export const FURNITURE_EDIT_ERROR_CODES = Object.freeze({
   INVALID_VALUE: "INVALID_VALUE",
   CONSTRAINT_VIOLATION: "CONSTRAINT_VIOLATION",
   UNSUPPORTED_FURNITURE_TYPE: "UNSUPPORTED_FURNITURE_TYPE",
+  TRANSACTION_FAILED: "TRANSACTION_FAILED",
 });
 
 const failure = (code, message) => ({ ok: false, error: { code, message } });

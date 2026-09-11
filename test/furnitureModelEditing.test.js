@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyFurnitureModelEdit, FURNITURE_EDIT_ERROR_CODES, getEditableProperties, getRegionHeight } from "../src/utils/furnitureModel/index.js";
+import { applyFurnitureModelEdit, applyFurnitureModelTransaction, FURNITURE_EDIT_ERROR_CODES, getEditableProperties, getRegionHeight } from "../src/utils/furnitureModel/index.js";
 import { buildFurnitureModel } from "../src/utils/furnitureModel/index.js";
 import { calculateWardrobeStructure, DEFAULT_WARDROBE_CONFIG } from "../src/utils/wardrobeStructure.js";
 import { calculateTvStandStructure, DEFAULT_TV_STAND_CONFIG, TV_STAND_MINIMUM_SECTION_WIDTH_CM } from "../src/utils/tvStandStructure.js";
@@ -580,4 +580,111 @@ test("Desk 35 percent integration rebuilds manufacturing pieces, regions and dia
   assert.equal(rebuilt.generatedPieces.find(({ name }) => name === "Base de cartón prensado del cajón").length, 45);
   const optimized = optimizeAllMaterials(rebuilt.generatedPieces, materials);
   assert.equal(optimized.melamine.unplaced.length + optimized.hardboard.unplaced.length, 0);
+});
+
+test("Wardrobe transaction applies ordered edits and emits a deterministic leaf diff", () => {
+  const fixture = wardrobeFixture();
+  const edits = [edit("wardrobe.body.1", .25), edit("wardrobe.body.2", .4)];
+  const result = applyFurnitureModelTransaction({ ...fixture, edits });
+  assert.equal(result.ok, true);
+  assert.equal(result.furnitureType, "wardrobe");
+  assert.deepEqual(result.nextConfig.sectionWidthRatios, [.24, .4, .36]);
+  assert.deepEqual(result.appliedEdits, edits);
+  assert.deepEqual(result.diff, [
+    { path: "sectionWidthRatios[0]", before: 1 / 3, after: .24 },
+    { path: "sectionWidthRatios[1]", before: 1 / 3, after: .4 },
+    { path: "sectionWidthRatios[2]", before: 1 / 3, after: .36 },
+  ]);
+  const rebuilt = rebuildAfterEdit(fixture, { nextConfig: result.nextConfig });
+  assert.deepEqual(rebuilt.structure.sectionWidthsCm, [58.5, 97.5, 88]);
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+});
+
+test("transaction failure reports the failed edit and rolls back every prior candidate", () => {
+  const fixture = wardrobeFixture();
+  const edits = [edit("wardrobe.body.1", .25), edit("wardrobe.body.2", .95)];
+  const configSnapshot = structuredClone(fixture.config);
+  const result = applyFurnitureModelTransaction({ ...fixture, edits });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, FURNITURE_EDIT_ERROR_CODES.TRANSACTION_FAILED);
+  assert.equal(result.error.cause.code, FURNITURE_EDIT_ERROR_CODES.CONSTRAINT_VIOLATION);
+  assert.equal(result.failedEditIndex, 1);
+  assert.deepEqual(result.edit, edits[1]);
+  assert.equal(result.nextConfig, undefined);
+  assert.deepEqual(fixture.config, configSnapshot);
+});
+
+test("transactions are deterministic, immutable and omit unchanged config fields from diff", () => {
+  const fixture = deskFixture();
+  const edits = [edit("desk.drawerModule", "left", "moduleSide"), edit("desk.drawerModule", .35, "moduleWidthRatio")];
+  const snapshots = { config: structuredClone(fixture.config), model: structuredClone(fixture.model), edits: structuredClone(edits), relations: structuredClone(fixture.model.relations), regions: structuredClone(fixture.model.regions), diagnostics: structuredClone(fixture.model.diagnostics) };
+  const first = applyFurnitureModelTransaction({ ...fixture, edits });
+  const second = applyFurnitureModelTransaction({ ...fixture, edits });
+  assert.deepEqual(first, second);
+  assert.deepEqual(first.diff, [
+    { path: "drawerModuleSide", before: "right", after: "left" },
+    { path: "drawerModuleWidthRatio", before: DEFAULT_DESK_DRAWER_MODULE_RATIO, after: .35 },
+  ]);
+  assert.deepEqual(first.appliedEdits, edits);
+  assert.deepEqual(fixture.config, snapshots.config);
+  assert.deepEqual(fixture.model, snapshots.model);
+  assert.deepEqual(edits, snapshots.edits);
+  assert.deepEqual(fixture.model.relations, snapshots.relations);
+  assert.deepEqual(fixture.model.regions, snapshots.regions);
+  assert.deepEqual(fixture.model.diagnostics, snapshots.diagnostics);
+});
+
+test("Desk multi-property transaction rebuilds left 35 percent atomically", () => {
+  const fixture = deskFixture();
+  const result = applyFurnitureModelTransaction({ ...fixture, edits: [edit("desk.drawerModule", "left", "moduleSide"), edit("desk.drawerModule", .35, "moduleWidthRatio")] });
+  const rebuilt = rebuildDeskAfterEdit(fixture, result);
+  assert.equal(result.ok, true);
+  assert.equal(result.nextConfig.drawerModuleSide, "left");
+  assert.equal(result.nextConfig.drawerModuleWidthRatio, .35);
+  assert.deepEqual({ module: rebuilt.structure.moduleWidthCm, opening: rebuilt.structure.drawerOpeningWidthCm, legs: rebuilt.structure.legroomWidthCm, divider: rebuilt.structure.dividerCenterXCm }, { module: 50.5, opening: 47.5, legs: 88, divider: -20.25 });
+  assert.equal(rebuilt.model.components.find(({ id }) => id === "desk.drawerModule").position.xCm, -44.75);
+  assert.equal(rebuilt.model.components.find(({ id }) => id === "desk.legOpening").position.xCm, 24.5);
+  assert.equal(rebuilt.model.regions.length, 6);
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+});
+
+test("TV Stand transaction preserves the complete controlled-edit contract", () => {
+  const fixture = tvStandFixture();
+  const [property] = getEditableProperties({ model: fixture.model, componentId: "tvStand.section.1", config: fixture.config, context: fixture.context });
+  const result = applyFurnitureModelTransaction({ ...fixture, edits: [edit("tvStand.section.1", .35)] });
+  const rebuilt = rebuildTvStandAfterEdit(fixture, result);
+  assert.equal(property.key, "widthRatio");
+  assert.deepEqual(result.nextConfig.sectionWidthRatios, [.35, .65]);
+  assert.deepEqual(result.diff.map(({ path }) => path), ["sectionWidthRatios[0]", "sectionWidthRatios[1]"]);
+  assert.deepEqual(rebuilt.structure.sectionWidthsCm, [61.5, 114]);
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(rebuilt.model.validation.valid, true);
+});
+
+test("Nightstand transaction preserves drawer geometry, regions and manufacturing", () => {
+  const fixture = nightstandFixture();
+  const [property] = getEditableProperties({ model: fixture.model, componentId: "nightstand.drawer.1", config: fixture.config, context: fixture.context });
+  const result = applyFurnitureModelTransaction({ ...fixture, edits: [edit("nightstand.drawer.1", .4, "heightRatio")] });
+  const rebuilt = rebuildNightstandAfterEdit(fixture, result);
+  assert.equal(property.key, "heightRatio");
+  assert.deepEqual(result.nextConfig.drawerHeightRatios, [.4, .6]);
+  assert.deepEqual(rebuilt.structure.drawerFrontHeightsCm, [17.5, 26.5]);
+  assert.equal(rebuilt.model.regions.length, 4);
+  assert.deepEqual(rebuilt.model.diagnostics, []);
+  assert.equal(optimizeAllMaterials(rebuilt.generatedPieces, materials).melamine.unplaced.length, 0);
+});
+
+test("Cat House remains non-editable and mixed-furniture transactions are rejected", () => {
+  const model = { furnitureType: "catHouse", components: [{ id: "catHouse.root", type: "section", role: "root" }], relations: [], regions: [], diagnostics: [] };
+  assert.deepEqual(getEditableProperties({ model, componentId: "catHouse.root", config: {}, context: {} }), []);
+  const unsupported = applyFurnitureModelTransaction({ model, config: {}, edits: [{ componentId: "catHouse.root", property: "widthRatio", value: .5 }], context: {} });
+  assert.equal(unsupported.ok, false);
+  assert.equal(unsupported.error.code, FURNITURE_EDIT_ERROR_CODES.TRANSACTION_FAILED);
+  assert.equal(unsupported.error.cause.code, FURNITURE_EDIT_ERROR_CODES.UNSUPPORTED_FURNITURE_TYPE);
+  const wardrobe = wardrobeFixture();
+  const mixed = applyFurnitureModelTransaction({ ...wardrobe, edits: [edit("wardrobe.body.1", .25), edit("desk.drawerModule", .35, "moduleWidthRatio")] });
+  assert.equal(mixed.failedEditIndex, 1);
+  assert.equal(mixed.error.cause.code, FURNITURE_EDIT_ERROR_CODES.COMPONENT_NOT_EDITABLE);
 });
